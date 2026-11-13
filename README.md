@@ -126,6 +126,8 @@ The brief compared three ideas for US cafe owners with a four-hour limit for sel
 
 The brief picked the **shift checklist** for the first test. The sample contains a comparable operations checklist, and the mockup takes the least seller time of the three. A manager can try the editable US Letter mockup on the next shift without waiting for a supplier or providing a storefront photo. Show it to three US cafe owners or managers. Proceed if at least two agree to try it and their feedback identifies a concrete improvement.
 
+In a separate Opera GX run, a test account paid **0.010000925400199157 NEAR** on testnet for Basic Etsy live using `cafe owner supplies`. While the order was awaiting payment, it recorded zero pages and zero listings. After checkout verified the receipt, **Resume research** scanned pages 1 and 2, saved **115 unique listings**, and stopped without opening page 3. The signed-in owner opened the private brief. The same report URL returned HTTP 404 without a wallet session. [Basic Etsy live testnet receipt](https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn)
+
 ## Verify checkout with a test transfer
 
 To run the checkout test, use a fresh database and two disposable accounts with faucet funds. Set `GLIMPSEA_TEST_PAYER_FILE` and `GLIMPSEA_TEST_OTHER_FILE` to local JSON files with `id` and `secret`. The second account must match the configured receiver. Run `bun scripts/verify-testnet-checkout.ts`. The test sends one payment on NEAR testnet.
