@@ -106,6 +106,14 @@ GLIMPSEA_EXTENSION_NEAR_TESTNET=0 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_ETSY_LIVE_B
 
 The recorded Opera GX run for `cafe owner supplies` read **78 listing cards across two pages** and saved **69 unique listings**. All 69 had a displayed price. Basic stopped at page 2 with a page 3 link still available. Counts and prices can vary between runs. Glimpsea reads the browser DOM without using the Etsy API and assembles this report locally.
 
+After the pagination fix, three Etsy live Basic runs in Opera GX each reached **Report ready** after one click on **Start analysis** without using **Resume research**. Each private report opened successfully. These runs used simulated payment.
+
+| Keyword | Pages read | Unique listings |
+| --- | ---: | ---: |
+| `barista apron` | 2 | 109 |
+| `digital wedding planner` | 2 | 108 |
+| `personalized dog collar` | 2 | 109 |
+
 Of the 69 unique listings, 53 titles matched cafe-related terms. Cafe and menu signs were the largest group the brief identified, with 17 matching titles. Displayed prices ranged from IDR 56,464 to 6,939,163 across product types, with a median of IDR 357,113. These are offers shown in the browser session.
 
 The brief compared three ideas for US cafe owners with a four-hour limit for seller work:

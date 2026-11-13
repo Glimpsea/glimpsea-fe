@@ -1,3 +1,4 @@
+/* global readEtsySearch */
 const origin = "http://127.0.0.1:3045";
 const catalogButton = document.querySelector("#open-catalog");
 const form = document.querySelector("#research");
@@ -82,18 +83,36 @@ async function scanEtsy(job) {
 }
 
 async function readEtsy(tabId, page, keyword) {
-  for (let attempt = 0; attempt < 40; attempt++) {
+  const deadline = Date.now() + 30_000;
+  let previousIds = "";
+  let stableSince = 0;
+  while (Date.now() < deadline) {
     const tab = await chrome.tabs.get(tabId);
-    const url = etsySearch(tab.url);
-    if (tab.status === "complete" && url?.searchParams.get("q") === keyword
-        && (url.searchParams.get("page") ?? "1") === String(page)) {
-      const [injection] = await chrome.scripting.executeScript({ target: { tabId }, files: ["etsy-search.js"] });
-      if (injection?.result?.page === page && injection.result.listings.length) {
-        await chrome.scripting.insertCSS({ target: { tabId }, files: ["catalog-content.css"] });
-        return injection.result;
+    if (!etsySearch(tab.url)) throw new Error("Return to the Etsy search results tab and select Resume research.");
+    // During pagination Opera can still report the previous URL or a loading tab.
+    // The injected reader checks the current document and its results instead.
+    const [injection] = await chrome.scripting.executeScript({
+      target: { tabId }, func: readEtsySearch, args: [page, keyword],
+    }).catch((error) => {
+      if (!/frame (?:was removed|with id)|no document|document (?:unloaded|was unloaded)/i.test(error.message)) throw error;
+      return [];
+    });
+    const capture = injection?.result;
+    if (capture?.listings.length) {
+      const ids = capture.listings.map((listing) => listing.listingId).join(",");
+      if (ids !== previousIds) {
+        previousIds = ids;
+        stableSince = Date.now();
       }
+      if (capture.documentLoaded && Date.now() - stableSince >= 2_000) {
+        await chrome.scripting.insertCSS({ target: { tabId }, files: ["catalog-content.css"] });
+        await chrome.scripting.executeScript({ target: { tabId }, func: readEtsySearch, args: [page, keyword, true] });
+        return capture;
+      }
+    } else {
+      previousIds = "";
     }
-    await sleep(300);
+    await sleep(500);
   }
   throw new Error(`Could not find readable listings on Etsy page ${page}. Check the Etsy tab, then select Resume research.`);
 }

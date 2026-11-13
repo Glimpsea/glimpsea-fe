@@ -1,7 +1,9 @@
-(() => {
+globalThis.readEtsySearch = function readEtsySearch(expectedPage, keyword, highlight = false) {
   const url = new URL(location.href);
-  if (url.origin !== "https://www.etsy.com" || url.pathname !== "/search") return null;
   const page = Number(url.searchParams.get("page") ?? "1");
+  if (url.origin !== "https://www.etsy.com" || url.pathname !== "/search"
+      || url.searchParams.get("q") !== keyword || page !== expectedPage
+      || document.readyState === "loading") return null;
   const listings = new Map();
   const clean = (value) => value?.replace(/\s+/g, " ").trim();
 
@@ -21,7 +23,7 @@
     const value = clean(priceNode?.querySelector(".currency-value")?.textContent);
     listings.set(listingId, { listingId, title: title.slice(0, 250), price: currency && value ? currency + value : null,
       url: `${url.origin}/listing/${listingId}` });
-    card.dataset.glimpseaRead = "";
+    if (highlight) card.dataset.glimpseaRead = "";
   }
 
   const next = Array.from(document.querySelectorAll("a[href]")).find((link) => {
@@ -30,6 +32,7 @@
       && href.searchParams.get("q") === url.searchParams.get("q")
       && href.searchParams.get("page") === String(page + 1);
   });
-  document.querySelector("[data-glimpsea-read]")?.scrollIntoView({ block: "nearest" });
-  return { page, url: url.href, listings: Array.from(listings.values()), nextUrl: next?.href ?? null };
-})();
+  if (highlight) document.querySelector("[data-glimpsea-read]")?.scrollIntoView({ block: "nearest" });
+  return { page, url: url.href, listings: Array.from(listings.values()), nextUrl: next?.href ?? null,
+    documentLoaded: document.readyState === "complete" };
+};
