@@ -23,6 +23,8 @@ Set `GLIMPSEA_RESEARCH_MODE=near-ai-cloud` in `.env.local`. Add your `NEAR_AI_AP
 
 The API uses the sources listed in the brief. A concept and its estimated production time are hypotheses. The brief includes a small test to help the seller assess interest. [NEAR AI Cloud setup](https://docs.near.ai/cloud/quickstart)
 
+Each concept must name a finished piece of wall art, where it hangs, and what the buyer receives. If the brief fails a check, Glimpsea can request one correction within the remaining token and time limits. If no brief passes, Glimpsea releases the simulated payment.
+
 ## Connect a buyer agent
 
 Read the agent card at `/.well-known/agent-card.json`. Send JSON-RPC requests to `/a2a/v1`.
@@ -39,5 +41,7 @@ SQLite stores the order, task status, brief, model usage, and simulated payment.
 ## Verify the demo
 
 Run `bun run verify:demo` with the demo server running in fixture mode. The checks cover delivery, a rejected order, a budget limit, and repeated authorizations.
+
+Run `bun scripts/verify-research.ts` to test the wall art filter with sample model responses.
 
 If you start the server in Cloud mode without an API key, run `bun run verify:demo --missing-cloud-key`. This checks that a research failure releases the simulated authorization.

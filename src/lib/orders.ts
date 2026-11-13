@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import type { OrderInput, SimulatedOffer, Task, TaskState } from "./a2a";
-import { research } from "./research";
+import { research, ResearchServiceError } from "./research";
 
 type Row = {
   message_id: string;
@@ -152,7 +152,8 @@ export async function processTask(taskId: string) {
     finish(taskId, job.attempt, "TASK_STATE_COMPLETED", undefined, result);
   } catch (error) {
     const missingKey = !process.env.NEAR_AI_API_KEY && process.env.GLIMPSEA_RESEARCH_MODE !== "fixture";
-    console.error("Glimpsea research failed for task", taskId, error instanceof Error ? error.name : "Unknown error");
+    console.error("Glimpsea research failed for task", taskId,
+      error instanceof ResearchServiceError ? error.message : "Internal research error.");
     finish(taskId, job.attempt, "TASK_STATE_FAILED", missingKey
       ? "NEAR AI Cloud needs an API key. Set NEAR_AI_API_KEY on the server and start a new order."
       : "Research failed. Start a new order or give support this task ID.");
