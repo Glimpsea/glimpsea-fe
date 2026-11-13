@@ -102,9 +102,21 @@ GLIMPSEA_EXTENSION_NEAR_TESTNET=0 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_ETSY_LIVE_B
 1. Open `opera://extensions` in Opera GX. Turn on **Developer mode**, select **Load unpacked**, and choose this repository's `extension` folder. If Glimpsea is already installed from that folder, select **Reload**.
 2. Open [Etsy search for cafe owner supplies](https://www.etsy.com/search?q=cafe+owner+supplies). From the Opera GX extensions menu, open **Glimpsea Research Demo** beside the search results.
 3. Choose **Etsy live search** and **Basic**. Use a Basic trial or select **Simulate payment**, then click **Start analysis**. Allow access to `www.etsy.com` when Opera prompts you.
-4. Watch the scan highlight cards and move to page 2. Click **Open private demo report** when the panel shows **Report ready**. The report shows the title, active price when available, and one Etsy URL per listing ID.
+4. Watch the scan highlight cards and move to page 2. Click **Open private demo report** when the panel shows **Report ready**. The report shows the title, active price when available, and one Etsy URL per listing ID. For the cafe search, it also groups matching titles, summarizes prices by currency, and compares three product ideas against the seller's time limit.
 
 The recorded Opera GX run for `cafe owner supplies` read **78 listing cards across two pages** and saved **69 unique listings**. All 69 had a displayed price. Basic stopped at page 2 with a page 3 link still available. Counts and prices can vary between runs. Glimpsea reads the browser DOM without using the Etsy API and assembles this report locally.
+
+Of the 69 unique listings, 53 titles matched cafe-related terms. Cafe and menu signs were the largest group the brief identified, with 17 matching titles. Displayed prices ranged from IDR 56,464 to 6,939,163 across product types, with a median of IDR 357,113. These are offers shown in the browser session.
+
+The brief compared three ideas for US cafe owners with a four-hour limit for seller work:
+
+| Idea | Estimated seller work | What to check |
+| --- | ---: | --- |
+| Editable opening and closing shift checklist | 2.5 hours | Whether the tasks match an actual cafe shift |
+| Cafe staff apron with the shop name | 3 hours | Supplier pricing, sample quality, and US delivery |
+| Custom storefront print | 3.5 hours | Photo quality and time for revisions |
+
+The brief picked the **shift checklist** for the first test. The sample contains a comparable operations checklist, and the mockup takes the least seller time of the three. A manager can try the editable US Letter mockup on the next shift without waiting for a supplier or providing a storefront photo. Show it to three US cafe owners or managers. Proceed if at least two agree to try it and their feedback identifies a concrete improvement.
 
 ## Verify checkout with a test transfer
 

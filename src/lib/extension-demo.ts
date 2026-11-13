@@ -3,6 +3,7 @@ import { PRODUCT_CATEGORIES, type OrderInput } from "./a2a";
 import { catalogPath, demoCatalogPage, demoListing, summarizeDemoCatalog, type DemoListingCapture } from "./demo-catalog";
 import { db } from "./orders";
 import { research } from "./research";
+import { renderEtsyBrief } from "./etsy-brief";
 import { ExtensionDemoError } from "./extension-errors";
 import { checkoutReceiver, verifyTestnetTransfer } from "./near-testnet";
 
@@ -302,7 +303,7 @@ export async function analyzeDemo(owner: string, id: unknown) {
 
   try {
     const order = JSON.parse(job.order_json) as DemoOrder;
-    const markdown = order.collection === "etsy" ? etsyReport(job) : (await research(order, order.collection === "dom"
+    const markdown = order.collection === "etsy" ? etsyReport(job, order) : (await research(order, order.collection === "dom"
       ? summarizeCaptures(job) : summarizeDemoCatalog(job.keyword, plans[job.plan], job.pages))).markdown;
     database().prepare(`
       UPDATE extension_demo_jobs SET markdown = ?, state = 'complete', lease_until = NULL
@@ -334,22 +335,18 @@ function summarizeCaptures(job: Job) {
     pagesRead: rows.length, counts, titles: listings.map(({ title }) => title), listings };
 }
 
-function etsyReport(job: Job) {
+function etsyReport(job: Job, order: DemoOrder) {
   const { pagesRead, listings } = summarizeCaptures(job);
-  const safe = (value: string) => value.replace(/\s+/g, " ").replace(/[\\`*_{}\[\]()<>~|&!]/g, "\\$&");
-  const priced = listings.filter((listing) => listing.price !== null).length;
-  return [
-    "## Etsy live search", "",
-    `Keyword: ${safe(job.keyword)}. Pages read: ${pagesRead} of up to ${plans[job.plan]}.`, "",
-    `${listings.length} unique listings. ${priced} showed a price. Prices are the offers shown when the pages were read.`, "",
-    "### Listings read from Etsy", "",
-    ...listings.map(({ title, url, price }) => `- [${safe(title)}](${url}) · ${price === null ? "No price shown" : safe(price)}`),
-  ].join("\n");
+  return renderEtsyBrief({ keyword: job.keyword, pagesRead, limit: plans[job.plan], listings, order });
 }
 
 export function demoReport(owner: string, id: string) {
   const job = readJob(owner, id);
   if (job.state !== "complete" || !job.markdown) throw new ExtensionDemoError("The report is not ready.", 404);
+  // Older live reports have saved captures and can gain the brief without another scan.
+  if (job.markdown.includes("\n### Listings read from Etsy\n") && job.markdown.startsWith("## Etsy live search\n")) {
+    return etsyReport(job, JSON.parse(job.order_json) as DemoOrder);
+  }
   return job.markdown;
 }
 
