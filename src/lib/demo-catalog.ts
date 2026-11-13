@@ -17,7 +17,30 @@ const ideas = {
 
 const listings = ideas.digital.flatMap((_, index) => PRODUCT_CATEGORIES.map((category) => ({
   id: `${category}-${index + 1}`, title: ideas[category][index], category,
-})));
+  price: `$${({ digital: 4, pod: 18, personalized: 22 })[category] + index}.00`,
+}))).map((listing, index) => ({
+  ...listing,
+  listingId: String(1000000001 + index),
+  activePrice: index === 0 ? "$3.20" : index === 2 ? null : listing.price,
+}));
+
+export function demoListing(id: string) {
+  return listings.find((listing) => listing.id === id || listing.listingId === id);
+}
+
+export function catalogPath(keyword: string, page: number) {
+  return `/demo-catalog?${new URLSearchParams({ keyword, page: String(page) })}`;
+}
+
+export type DemoListingCapture = {
+  listingId?: string;
+  title: string;
+  price: string | null;
+  url: string;
+  category?: keyof typeof ideas;
+};
+
+export type CatalogEvidence = ReturnType<typeof summarizeDemoCatalog> & { listings?: DemoListingCapture[] };
 
 export function demoCatalogPage(keyword: string, page: number) {
   const words = keyword.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").match(/[a-z0-9]+/g) ?? [];

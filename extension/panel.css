@@ -10,8 +10,17 @@ button { background: #FEC40b; font-weight: 650; cursor: pointer; }
 button:disabled { opacity: .6; cursor: not-allowed; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 #trials { margin: 0; }
+#open-catalog { margin-bottom: .85rem; }
 #status { overflow-wrap: anywhere; }
 #wallet-status { overflow-wrap: anywhere; }
 #disconnect-wallet { margin-bottom: .75rem; }
 #history { display: grid; gap: .5rem; margin-top: 1rem; }
 .secondary { background: transparent; text-align: left; }
+#scan-results { margin: 1rem 0; padding: .8rem; background: #fff9eb; border: 1px solid #8c7161; }
+#scan-heading { margin: 0; font: 1.3rem/1.2 Georgia, serif; }
+#scan-count { margin: .4rem 0; font-size: .88rem; }
+#scan-progress { width: 100%; height: .7rem; accent-color: #a12431; }
+#scan-listings { list-style: none; margin: .3rem 0 0; padding: 0; }
+#scan-listings li { display: grid; gap: .2rem; padding: .5rem 0; border-bottom: 1px solid #d9c6ab; font-size: .88rem; overflow-wrap: anywhere; }
+#scan-listings li:last-child { border-bottom: 0; }
+#scan-listings a { color: inherit; text-decoration-thickness: 1px; }

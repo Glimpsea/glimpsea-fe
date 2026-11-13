@@ -1,8 +1,6 @@
 import { CATEGORY_LABELS, type OrderInput } from "./a2a";
 import { asObject, BriefValidationError, cafeProductPlan, describeProduct, planText, PRODUCT_PROMPT, requireText, validateProductPlan, type ProductPlan } from "./product-research";
-import type { summarizeDemoCatalog } from "./demo-catalog";
-
-type CatalogEvidence = ReturnType<typeof summarizeDemoCatalog>;
+import type { CatalogEvidence } from "./demo-catalog";
 
 const WALL_ART_TYPES = ["poster", "art print", "art print set"] as const;
 
@@ -264,10 +262,17 @@ function renderBrief(brief: Brief, order: OrderInput): string {
     "",
   ];
   if (brief.catalogEvidence) {
-    const { keyword, maxPages, pagesRead, counts } = brief.catalogEvidence;
+    const { keyword, maxPages, pagesRead, counts, listings } = brief.catalogEvidence;
     lines.push("## Demo catalog coverage", "",
       `Keyword: ${markdownText(keyword)}. Pages read: ${pagesRead} of up to ${maxPages}.`, "",
       `Synthetic listings: ${counts.digital} digital, ${counts.pod} print-on-demand, ${counts.personalized} personalized.`, "");
+    if (listings?.length) {
+      lines.push("### Listings read from the demo page", "");
+      for (const { title, price, url } of listings) {
+        lines.push(`- [${markdownText(title)}](${url}) · ${price === null ? "No price shown" : markdownText(price)}`);
+      }
+      lines.push("");
+    }
   }
   lines.push("## Concepts", "");
   if (brief.concepts.length === 0) {

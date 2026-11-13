@@ -23,7 +23,8 @@ export function GET(request: Request) {
     const grant = redeemReportTicket(url.searchParams.get("ticket"));
     if (!grant) return new Response("The demo link expired. Open the report again from the extension.", { status: 404 });
     const path = `/reports/${grant.job_id}`;
-    const response = NextResponse.redirect(new URL(path, url), 303);
+    // Keep the report on the same host as the ticket, where its cookie is set.
+    const response = new NextResponse(null, { status: 303, headers: { Location: path } });
     response.headers.set("Cache-Control", "no-store");
     response.headers.set("Referrer-Policy", "no-referrer");
     response.cookies.set(`glimpsea_report_${grant.job_id}`, createReportSession(grant.owner, grant.job_id), {

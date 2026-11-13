@@ -10,11 +10,18 @@
 <body>
   <main>
     <h1>Glimpsea</h1>
-    <p id="demo-note">Explore products in a synthetic catalog.</p>
+    <p id="demo-note">Search the local Etsy simulation with Glimpsea open beside it.</p>
+    <button id="open-catalog" class="secondary" type="button">Open Etsy simulation</button>
     <p id="wallet-status"></p>
     <button id="connect-wallet" type="button" hidden>Connect NEAR testnet wallet</button>
     <button id="disconnect-wallet" class="secondary" type="button" hidden>Disconnect wallet</button>
     <form id="research" hidden>
+      <label id="source-field" hidden>Source
+        <select name="source">
+          <option value="etsy">Etsy live search</option>
+          <option value="dom">Local Etsy simulation</option>
+        </select>
+      </label>
       <label>Keyword <input name="keyword" value="cafe owner supplies" required maxlength="120"></label>
       <label>Target buyers in the US <input name="audience" value="US cafe owners" required maxlength="180"></label>
       <label>Hours to prepare the first product <input name="productionHours" type="number" value="4" min="0.5" max="80" step="0.5" required></label>
@@ -40,11 +47,17 @@
         </select>
       </label>
       <p id="trials"></p>
-      <button type="submit">Start research</button>
+      <button type="submit">Start analysis</button>
     </form>
     <p role="status" id="status">Connect to the local Glimpsea demo to start.</p>
     <button id="checkout" type="button" hidden>Open testnet checkout</button>
     <button id="open-report" type="button" hidden>Open private demo report</button>
+    <section id="scan-results" aria-labelledby="scan-heading" hidden>
+      <h2 id="scan-heading">Listings read</h2>
+      <p id="scan-count" role="status"></p>
+      <progress id="scan-progress" aria-label="Catalog pages read"></progress>
+      <ol id="scan-listings"></ol>
+    </section>
     <div id="history" aria-label="Research history"></div>
   </main>
 </body>

@@ -1,6 +1,6 @@
 # Glimpsea
 
-Glimpsea is a Chrome extension that helps Etsy sellers decide what to make. It searches a synthetic catalog and compares digital downloads, print-on-demand products, and simple personalized items. Sellers can sign in with a NEAR testnet wallet, run two Basic trials, and pay for more research. Glimpsea also has an A2A endpoint for agents that exchange orders and briefs.
+Glimpsea is a browser extension that helps Etsy sellers decide what to make. Its research demo compares digital downloads, print-on-demand products, and simple personalized items using a synthetic catalog. The authorized Etsy pilot reads live search results in Opera GX. Sellers can sign in with a NEAR testnet wallet, run two Basic trials, and pay for more research. Glimpsea also has an A2A endpoint for agents that exchange orders and briefs.
 
 The demo compares a digital download, a print-on-demand product, and a personalized product for cafe owners in the US. The seller has four hours to prepare a first product. The brief compares the three ideas and picks one to test.
 
@@ -83,11 +83,28 @@ Run the local server from this directory:
 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_RESEARCH_MODE=fixture bun run dev --port 3045
 ```
 
-Load the extension as described above. Use a Basic trial to scan two catalog pages. Select **Simulate payment** to try the five-page or ten-page package. Open the report from the side panel after the scan finishes.
+Load or reload the extension as described above. Open the [local Etsy search simulation](http://127.0.0.1:3045/demo-catalog?keyword=cafe+owner+supplies&page=1), then click the Glimpsea toolbar icon to open the side panel beside it. Choose **Basic** and click **Start analysis**. Glimpsea highlights cards as it reads them, follows **Next page**, and updates the panel with titles, active prices, and links. Basic stops after two pages or when results end. A listing repeated on another page counts once. Open the private report from the panel to see the analysis.
 
-For NEAR AI Cloud research, use `GLIMPSEA_RESEARCH_MODE=near-ai-cloud` and set `NEAR_AI_API_KEY` in `.env.local`. Both modes use the synthetic catalog. The simulation assigns two trials to a browser identity.
+Select **Simulate payment** to try Medium (up to five pages) or Deep (up to ten pages). The simulation uses synthetic listings and runs on localhost.
+
+For NEAR AI Cloud research with the synthetic catalog, use `GLIMPSEA_RESEARCH_MODE=near-ai-cloud` and set `NEAR_AI_API_KEY` in `.env.local`. The simulation assigns two trials to a browser identity.
 
 With the fixture server running on port 3045, run `bun scripts/verify-extension.ts` to check page limits, trial use, and report access.
+
+## Test Basic on Etsy live in Opera GX
+
+Use this pilot only with Etsy's permission for live collection. Start the local server with the pilot enabled and the NEAR checkout flow disabled for this test.
+
+```sh
+GLIMPSEA_EXTENSION_NEAR_TESTNET=0 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_ETSY_LIVE_BASIC=1 GLIMPSEA_RESEARCH_MODE=fixture bun run dev --port 3045
+```
+
+1. Open `opera://extensions` in Opera GX. Turn on **Developer mode**, select **Load unpacked**, and choose this repository's `extension` folder. If Glimpsea is already installed from that folder, select **Reload**.
+2. Open [Etsy search for cafe owner supplies](https://www.etsy.com/search?q=cafe+owner+supplies). From the Opera GX extensions menu, open **Glimpsea Research Demo** beside the search results.
+3. Choose **Etsy live search** and **Basic**. Use a Basic trial or select **Simulate payment**, then click **Start analysis**. Allow access to `www.etsy.com` when Opera prompts you.
+4. Watch the scan highlight cards and move to page 2. Click **Open private demo report** when the panel shows **Report ready**. The report shows the title, active price when available, and one Etsy URL per listing ID.
+
+The recorded Opera GX run for `cafe owner supplies` read **78 listing cards across two pages** and saved **69 unique listings**. All 69 had a displayed price. Basic stopped at page 2 with a page 3 link still available. Counts and prices can vary between runs. Glimpsea reads the browser DOM without using the Etsy API and assembles this report locally.
 
 ## Verify checkout with a test transfer
 

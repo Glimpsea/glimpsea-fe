@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
 import { PRODUCT_CATEGORIES, type OrderInput } from "./a2a";
-import { demoCatalogPage, summarizeDemoCatalog } from "./demo-catalog";
+import { catalogPath, demoCatalogPage, demoListing, summarizeDemoCatalog, type DemoListingCapture } from "./demo-catalog";
 import { db } from "./orders";
 import { research } from "./research";
 import { ExtensionDemoError } from "./extension-errors";
@@ -12,6 +12,8 @@ const plans = { basic: 2, medium: 5, deep: 10 } as const;
 type Plan = keyof typeof plans;
 const testnetPrices = { basic: 10n ** 22n, medium: 3n * 10n ** 22n, deep: 6n * 10n ** 22n };
 type Checkout = { id: string; owner: string; receiver: string; amount: string; tx_hash: string | null };
+type Capture = { page: number; listings: DemoListingCapture[]; hasNext: boolean; nextUrl?: string };
+type DemoOrder = OrderInput & { collection?: "dom" | "etsy" };
 type Job = {
   id: string;
   owner: string;
@@ -34,6 +36,9 @@ function database() {
       state TEXT NOT NULL DEFAULT 'browsing', markdown TEXT, lease_until INTEGER
     );
     CREATE INDEX IF NOT EXISTS extension_demo_owner ON extension_demo_jobs(owner, access, state);
+    CREATE TABLE IF NOT EXISTS extension_demo_captures (
+      job_id TEXT NOT NULL, page INTEGER NOT NULL, capture_json TEXT NOT NULL, PRIMARY KEY (job_id, page)
+    );
     CREATE TABLE IF NOT EXISTS extension_demo_tickets (
       ticket TEXT PRIMARY KEY, job_id TEXT NOT NULL, owner TEXT NOT NULL, expires_at INTEGER NOT NULL
     );
@@ -74,11 +79,16 @@ export function startDemo(owner: string, input: Record<string, unknown>, nearAcc
   const supported = PRODUCT_CATEGORIES.find((item) => item === category);
   if (category !== undefined && !supported) throw new ExtensionDemoError("Choose a supported category.");
   if (access === "trial" && plan !== "basic") throw new ExtensionDemoError("Trials use the Basic package.");
-  if (demoCatalogPage(keyword, 1).listings.length === 0) {
+  const collection = input.collection === "etsy" ? "etsy" : input.collection === "dom" ? "dom" : undefined;
+  if (collection === "etsy" && (process.env.GLIMPSEA_ETSY_LIVE_BASIC !== "1" || plan !== "basic")) {
+    throw new ExtensionDemoError("Etsy live is available only for the enabled Basic pilot.");
+  }
+  if (collection !== "etsy" && demoCatalogPage(keyword, 1).listings.length === 0) {
     throw new ExtensionDemoError("No results in the sample catalog. Try cafe owner supplies.");
   }
   const id = randomUUID();
-  const order: OrderInput = { country: "US", audience: audience.trim(), productionHours, ...(supported && { category: supported }) };
+  const order: DemoOrder = { country: "US", audience: audience.trim(), productionHours,
+    ...(supported && { category: supported }), collection };
   if (nearAccount && access === "testnet-payment") {
     const receiver = checkoutReceiver();
     if (nearAccount === receiver) throw new ExtensionDemoError("Use a different wallet from the payment receiver.");
@@ -126,9 +136,13 @@ function readJob(owner: string, id: unknown): Job {
 
 export function demoJob(owner: string, id: unknown) {
   const job = readJob(owner, id);
+  const collection = (JSON.parse(job.order_json) as DemoOrder).collection;
   const checkout = job.access === "testnet-payment" ? readCheckout(owner, job.id) : undefined;
   return {
-    id: job.id, state: job.state, pages: job.pages, limit: plans[job.plan],
+    id: job.id, state: job.state, pages: job.pages, limit: plans[job.plan], keyword: job.keyword, collection,
+    ...(collection === "dom" && job.state === "browsing" && { catalogPath: catalogPath(job.keyword, job.pages + 1) }),
+    ...(collection === "etsy" && job.state === "browsing" && job.pages > 0 && { nextUrl: savedCapture(job, job.pages).nextUrl }),
+    ...(collection && job.pages > 0 && { listings: summarizeCaptures(job).listings }),
     ...(checkout && { checkout: { receiver: checkout.receiver, amount: checkout.amount, txHash: checkout.tx_hash } }),
     ...(job.state === "complete" && { reportPath: `/reports/${job.id}` }),
   };
@@ -171,12 +185,99 @@ export async function payDemo(owner: string, account: string, id: unknown, hash:
   return demoJob(owner, checkout.id);
 }
 
-export function browseDemoPage(owner: string, id: unknown, page: unknown) {
+function readCapture(input: unknown, job: Job, page: number): Capture {
+  const { listings, nextUrl, page: capturedPage } = (input ?? {}) as { listings?: unknown; nextUrl?: unknown; page?: unknown };
+  const next = `http://127.0.0.1:3045${catalogPath(job.keyword, page + 1)}`;
+  if (capturedPage !== page || (nextUrl !== null && nextUrl !== next) || !Array.isArray(listings)
+      || listings.length === 0 || listings.length > 3) {
+    throw new ExtensionDemoError("Read this page from the demo catalog before continuing.");
+  }
+  const unique = new Map<string, DemoListingCapture>();
+  for (const listing of listings) {
+    if (!listing || typeof listing.title !== "string" || !listing.title.trim() || listing.title.length > 200
+        || (listing.price !== null && (typeof listing.price !== "string" || listing.price.length > 60))
+        || typeof listing.url !== "string") {
+      throw new ExtensionDemoError("The demo page returned an invalid listing.");
+    }
+    const routeId = /^http:\/\/127\.0\.0\.1:3045\/demo-catalog\/listing\/(\d+|(?:digital|pod|personalized)-\d+)$/.exec(listing.url)?.[1];
+    const fixture = routeId && demoListing(routeId);
+    if (!fixture || fixture.category !== listing.category
+        || (listing.listingId !== undefined && listing.listingId !== fixture.listingId)) {
+      throw new ExtensionDemoError("The demo page returned an invalid listing.");
+    }
+    if (!unique.has(fixture.listingId)) {
+      unique.set(fixture.listingId, { listingId: fixture.listingId, title: listing.title, price: listing.price,
+        url: `http://127.0.0.1:3045/demo-catalog/listing/${fixture.listingId}`, category: fixture.category });
+    }
+  }
+  return { page, listings: Array.from(unique.values()), hasNext: nextUrl !== null };
+}
+
+function matchesEtsySearch(value: unknown, keyword: string, page: number) {
+  if (typeof value !== "string" || value.length > 2048) return false;
+  const url = URL.parse(value);
+  return url?.origin === "https://www.etsy.com" && url.pathname === "/search"
+    && !url.username && !url.password && url.searchParams.get("q") === keyword
+    && (url.searchParams.get("page") ?? "1") === String(page);
+}
+
+function readEtsyCapture(input: unknown, job: Job, page: number): Capture {
+  if (process.env.GLIMPSEA_ETSY_LIVE_BASIC !== "1") throw new ExtensionDemoError("Etsy live is disabled.");
+  const capture = (input ?? {}) as Record<string, unknown>;
+  const { listings, nextUrl } = capture;
+  if (capture.page !== page || !matchesEtsySearch(capture.url, job.keyword, page)
+      || (nextUrl !== null && !matchesEtsySearch(nextUrl, job.keyword, page + 1))
+      || !Array.isArray(listings) || listings.length === 0 || listings.length > 100) {
+    throw new ExtensionDemoError("Read the expected Etsy search page before continuing.");
+  }
+  const unique = new Map<string, DemoListingCapture>();
+  for (const listing of listings) {
+    if (!listing || typeof listing.listingId !== "string" || !/^\d{1,20}$/.test(listing.listingId)
+        || typeof listing.title !== "string" || !listing.title.trim() || listing.title.length > 250
+        || (listing.price !== null && (typeof listing.price !== "string" || listing.price.length > 60))) {
+      throw new ExtensionDemoError("Etsy returned an invalid listing.");
+    }
+    const { listingId, title, price } = listing;
+    if (!unique.has(listingId)) unique.set(listingId, { listingId, title, price, url: `https://www.etsy.com/listing/${listingId}` });
+  }
+  return { page, listings: Array.from(unique.values()), hasNext: nextUrl !== null,
+    ...(typeof nextUrl === "string" && { nextUrl }) };
+}
+
+function savedCapture(job: Job, page: number): Capture {
+  const row = database().prepare("SELECT capture_json FROM extension_demo_captures WHERE job_id = ? AND page = ?")
+    .get(job.id, page) as { capture_json: string };
+  return JSON.parse(row.capture_json);
+}
+
+export function browseDemoPage(owner: string, id: unknown, page: unknown, capture?: unknown) {
   const job = readJob(owner, id);
   if (job.state === "awaiting-payment") throw new ExtensionDemoError("Verify the testnet payment before browsing.", 402);
   if (typeof page !== "number" || !Number.isInteger(page) || page < 1 || page > plans[job.plan]
       || page > job.pages + 1 || (page > job.pages && job.state !== "browsing")) {
     throw new ExtensionDemoError("Read pages in order up to the package limit.");
+  }
+  const collection = (JSON.parse(job.order_json) as DemoOrder).collection;
+  if (collection) {
+    const connection = database();
+    if (page <= job.pages) {
+      return { ...savedCapture(job, page), job: demoJob(owner, job.id) };
+    }
+    const result = collection === "etsy" ? readEtsyCapture(capture, job, page) : readCapture(capture, job, page);
+    const state = !result.hasNext || page === plans[job.plan] ? "ready" : "browsing";
+    connection.exec("BEGIN IMMEDIATE");
+    try {
+      const update = connection.prepare(`
+        UPDATE extension_demo_jobs SET pages = ?, state = ? WHERE id = ? AND state = 'browsing' AND pages = ?
+      `).run(page, state, job.id, job.pages);
+      if (!update.changes) throw new ExtensionDemoError("The job has moved to another page. Resume research.", 409);
+      connection.prepare("INSERT INTO extension_demo_captures VALUES (?, ?, ?)").run(job.id, page, JSON.stringify(result));
+      connection.exec("COMMIT");
+    } catch (error) {
+      connection.exec("ROLLBACK");
+      throw error;
+    }
+    return { ...result, job: demoJob(owner, job.id) };
   }
   const result = demoCatalogPage(job.keyword, page);
   if (page === job.pages + 1) {
@@ -199,9 +300,10 @@ export async function analyzeDemo(owner: string, id: unknown) {
   `).run(lease, job.id, now);
   if (!claim.changes) return demoJob(owner, job.id);
 
-  const evidence = summarizeDemoCatalog(job.keyword, plans[job.plan], job.pages);
   try {
-    const { markdown } = await research(JSON.parse(job.order_json), evidence);
+    const order = JSON.parse(job.order_json) as DemoOrder;
+    const markdown = order.collection === "etsy" ? etsyReport(job) : (await research(order, order.collection === "dom"
+      ? summarizeCaptures(job) : summarizeDemoCatalog(job.keyword, plans[job.plan], job.pages))).markdown;
     database().prepare(`
       UPDATE extension_demo_jobs SET markdown = ?, state = 'complete', lease_until = NULL
       WHERE id = ? AND state = 'analyzing' AND lease_until = ?
@@ -213,6 +315,36 @@ export async function analyzeDemo(owner: string, id: unknown) {
     `).run(job.id, lease);
   }
   return demoJob(owner, job.id);
+}
+
+function summarizeCaptures(job: Job) {
+  const rows = database().prepare("SELECT capture_json FROM extension_demo_captures WHERE job_id = ? ORDER BY page")
+    .all(job.id) as { capture_json: string }[];
+  const unique = new Map<string, DemoListingCapture>();
+  for (const row of rows) {
+    for (const listing of (JSON.parse(row.capture_json) as Capture).listings) {
+      const id = listing.listingId ?? demoListing(listing.url.split("/").at(-1) ?? "")?.listingId ?? listing.url;
+      if (!unique.has(id)) unique.set(id, listing);
+    }
+  }
+  const listings = Array.from(unique.values());
+  const counts = { digital: 0, pod: 0, personalized: 0 };
+  for (const listing of listings) if (listing.category) counts[listing.category]++;
+  return { source: "glimpsea-synthetic-catalog", keyword: job.keyword, maxPages: plans[job.plan],
+    pagesRead: rows.length, counts, titles: listings.map(({ title }) => title), listings };
+}
+
+function etsyReport(job: Job) {
+  const { pagesRead, listings } = summarizeCaptures(job);
+  const safe = (value: string) => value.replace(/\s+/g, " ").replace(/[\\`*_{}\[\]()<>~|&!]/g, "\\$&");
+  const priced = listings.filter((listing) => listing.price !== null).length;
+  return [
+    "## Etsy live search", "",
+    `Keyword: ${safe(job.keyword)}. Pages read: ${pagesRead} of up to ${plans[job.plan]}.`, "",
+    `${listings.length} unique listings. ${priced} showed a price. Prices are the offers shown when the pages were read.`, "",
+    "### Listings read from Etsy", "",
+    ...listings.map(({ title, url, price }) => `- [${safe(title)}](${url}) · ${price === null ? "No price shown" : safe(price)}`),
+  ].join("\n");
 }
 
 export function demoReport(owner: string, id: string) {

@@ -24,7 +24,7 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   return (
     <main className="brief wrap">
       <h1 className="text-3xl font-semibold">Glimpsea research report</h1>
-      <p>Research from the synthetic Glimpsea catalog.</p>
+      <p>{body.startsWith("## Etsy live search") ? "Listings read from Etsy search results." : "Research from the synthetic Glimpsea catalog."}</p>
       <BriefCopy markdown={body} />
     </main>
   );
