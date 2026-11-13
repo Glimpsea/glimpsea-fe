@@ -1,0 +1,17 @@
+:root { color-scheme: light; font: 15px/1.5 system-ui, sans-serif; color: #1e1111; background: #FDEFD6; }
+[hidden] { display: none !important; }
+body { margin: 0; }
+main { max-width: 32rem; padding: 1.4rem; margin: auto; }
+h1 { margin: 0; font: italic 2.4rem/1 Georgia, serif; }
+form { display: grid; gap: .8rem; border-top: 3px solid #f31328; padding-top: 1rem; }
+label { display: grid; gap: .3rem; font-weight: 600; }
+input, select, button { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid currentColor; border-radius: .35rem; font: inherit; padding: .5rem .7rem; color: inherit; background: #fff9eb; }
+button { background: #FEC40b; font-weight: 650; cursor: pointer; }
+button:disabled { opacity: .6; cursor: not-allowed; }
+:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
+#trials { margin: 0; }
+#status { overflow-wrap: anywhere; }
+#wallet-status { overflow-wrap: anywhere; }
+#disconnect-wallet { margin-bottom: .75rem; }
+#history { display: grid; gap: .5rem; margin-top: 1rem; }
+.secondary { background: transparent; text-align: left; }

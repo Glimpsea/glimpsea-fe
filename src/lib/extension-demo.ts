@@ -1,0 +1,263 @@
+import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
+import { PRODUCT_CATEGORIES, type OrderInput } from "./a2a";
+import { demoCatalogPage, summarizeDemoCatalog } from "./demo-catalog";
+import { db } from "./orders";
+import { research } from "./research";
+import { ExtensionDemoError } from "./extension-errors";
+import { checkoutReceiver, verifyTestnetTransfer } from "./near-testnet";
+
+export { ExtensionDemoError } from "./extension-errors";
+
+const plans = { basic: 2, medium: 5, deep: 10 } as const;
+type Plan = keyof typeof plans;
+const testnetPrices = { basic: 10n ** 22n, medium: 3n * 10n ** 22n, deep: 6n * 10n ** 22n };
+type Checkout = { id: string; owner: string; receiver: string; amount: string; tx_hash: string | null };
+type Job = {
+  id: string;
+  owner: string;
+  plan: Plan;
+  access: "trial" | "simulated-payment" | "testnet-payment";
+  keyword: string;
+  order_json: string;
+  pages: number;
+  state: "awaiting-payment" | "browsing" | "ready" | "analyzing" | "complete" | "failed";
+  markdown: string | null;
+  lease_until: number | null;
+};
+
+function database() {
+  const database = db();
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS extension_demo_jobs (
+      id TEXT PRIMARY KEY, owner TEXT NOT NULL, plan TEXT NOT NULL, access TEXT NOT NULL,
+      keyword TEXT NOT NULL, order_json TEXT NOT NULL, pages INTEGER NOT NULL DEFAULT 0,
+      state TEXT NOT NULL DEFAULT 'browsing', markdown TEXT, lease_until INTEGER
+    );
+    CREATE INDEX IF NOT EXISTS extension_demo_owner ON extension_demo_jobs(owner, access, state);
+    CREATE TABLE IF NOT EXISTS extension_demo_tickets (
+      ticket TEXT PRIMARY KEY, job_id TEXT NOT NULL, owner TEXT NOT NULL, expires_at INTEGER NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS extension_demo_tickets_expiry ON extension_demo_tickets(expires_at);
+    CREATE TABLE IF NOT EXISTS extension_demo_configuration (id INTEGER PRIMARY KEY, session_key TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS extension_testnet_checkouts (
+      id TEXT PRIMARY KEY, owner TEXT NOT NULL, receiver TEXT NOT NULL, amount TEXT UNIQUE NOT NULL,
+      tx_hash TEXT UNIQUE
+    );
+  `);
+  return database;
+}
+
+export function demoOwner(token: unknown) {
+  if (typeof token !== "string" || !/^[a-f0-9-]{36}$/.test(token)) {
+    throw new ExtensionDemoError("Open this demo from the Glimpsea extension.", 401);
+  }
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export function trialsRemaining(owner: string) {
+  const row = database().prepare(`
+    SELECT count(*) AS used FROM extension_demo_jobs WHERE owner = ? AND access = 'trial' AND state != 'failed'
+  `).get(owner) as { used: number };
+  return Math.max(0, 2 - row.used);
+}
+
+export function startDemo(owner: string, input: Record<string, unknown>, nearAccount?: string) {
+  const { keyword, plan, access, category, productionHours, audience } = input;
+  if (typeof keyword !== "string" || !keyword.trim() || keyword.length > 120
+      || typeof audience !== "string" || !audience.trim() || audience.length > 180
+      || (plan !== "basic" && plan !== "medium" && plan !== "deep")
+      || (access !== "trial" && access !== (nearAccount ? "testnet-payment" : "simulated-payment"))
+      || typeof productionHours !== "number" || !Number.isFinite(productionHours)
+      || productionHours <= 0 || productionHours > 80) {
+    throw new ExtensionDemoError("Choose a package, enter a keyword and audience, and set seller work from 0 to 80 hours.");
+  }
+  const supported = PRODUCT_CATEGORIES.find((item) => item === category);
+  if (category !== undefined && !supported) throw new ExtensionDemoError("Choose a supported category.");
+  if (access === "trial" && plan !== "basic") throw new ExtensionDemoError("Trials use the Basic package.");
+  if (demoCatalogPage(keyword, 1).listings.length === 0) {
+    throw new ExtensionDemoError("No results in the sample catalog. Try cafe owner supplies.");
+  }
+  const id = randomUUID();
+  const order: OrderInput = { country: "US", audience: audience.trim(), productionHours, ...(supported && { category: supported }) };
+  if (nearAccount && access === "testnet-payment") {
+    const receiver = checkoutReceiver();
+    if (nearAccount === receiver) throw new ExtensionDemoError("Use a different wallet from the payment receiver.");
+    const connection = database();
+    connection.exec("BEGIN IMMEDIATE");
+    try {
+      let amount: string;
+      do {
+        amount = (testnetPrices[plan] + BigInt(randomInt(1, 10 ** 12)) * 10n ** 6n).toString();
+      } while (connection.prepare("SELECT 1 FROM extension_testnet_checkouts WHERE amount = ?").get(amount));
+      connection.prepare("INSERT INTO extension_testnet_checkouts (id, owner, receiver, amount) VALUES (?, ?, ?, ?)")
+        .run(id, owner, receiver, amount);
+      connection.prepare(`
+        INSERT INTO extension_demo_jobs (id, owner, plan, access, keyword, order_json, state)
+        VALUES (?, ?, ?, ?, ?, ?, 'awaiting-payment')
+      `).run(id, owner, plan, access, keyword.trim(), JSON.stringify(order));
+      connection.exec("COMMIT");
+    } catch (error) {
+      connection.exec("ROLLBACK");
+      throw error;
+    }
+    return demoJob(owner, id);
+  }
+  const trialAccess = access === "trial" ? "trial" : "simulated-payment";
+  const result = database().prepare(`
+    INSERT INTO extension_demo_jobs (id, owner, plan, access, keyword, order_json)
+    SELECT ?, ?, ?, ?, ?, ?
+    WHERE ? != 'trial' OR (
+      SELECT count(*) FROM extension_demo_jobs WHERE owner = ? AND access = 'trial' AND state != 'failed'
+    ) < 2
+  `).run(id, owner, plan, trialAccess, keyword.trim(), JSON.stringify(order), trialAccess, owner);
+  if (result.changes === 0) throw new ExtensionDemoError(nearAccount
+    ? "Both Basic trials are used. Pay on NEAR testnet to start another research job."
+    : "Both demo trials are used. Choose simulated payment.", 402);
+  return demoJob(owner, id);
+}
+
+function readJob(owner: string, id: unknown): Job {
+  const job = typeof id === "string"
+    ? database().prepare("SELECT * FROM extension_demo_jobs WHERE id = ? AND owner = ?").get(id, owner) as Job | undefined
+    : undefined;
+  if (!job) throw new ExtensionDemoError("Research job not found.", 404);
+  return job;
+}
+
+export function demoJob(owner: string, id: unknown) {
+  const job = readJob(owner, id);
+  const checkout = job.access === "testnet-payment" ? readCheckout(owner, job.id) : undefined;
+  return {
+    id: job.id, state: job.state, pages: job.pages, limit: plans[job.plan],
+    ...(checkout && { checkout: { receiver: checkout.receiver, amount: checkout.amount, txHash: checkout.tx_hash } }),
+    ...(job.state === "complete" && { reportPath: `/reports/${job.id}` }),
+  };
+}
+
+export function listDemoJobs(owner: string) {
+  const jobs = database().prepare(`
+    SELECT id, keyword, plan, state FROM extension_demo_jobs WHERE owner = ? ORDER BY rowid DESC LIMIT 20
+  `).all(owner) as { id: string; keyword: string; plan: string; state: Job["state"] }[];
+  return { jobs };
+}
+
+function readCheckout(owner: string, id: unknown) {
+  const checkout = typeof id === "string" ? database().prepare("SELECT * FROM extension_testnet_checkouts WHERE id = ? AND owner = ?")
+    .get(id, owner) as Checkout | undefined : undefined;
+  if (!checkout) throw new ExtensionDemoError("Testnet checkout not found.", 404);
+  return checkout;
+}
+
+export async function payDemo(owner: string, account: string, id: unknown, hash: unknown) {
+  const checkout = readCheckout(owner, id);
+  if (checkout.tx_hash && checkout.tx_hash === hash) return demoJob(owner, checkout.id);
+  if (checkout.tx_hash) throw new ExtensionDemoError("This checkout already has a verified payment.", 409);
+  const txHash = await verifyTestnetTransfer(hash, account, checkout.receiver, checkout.amount);
+  const connection = database();
+  connection.exec("BEGIN IMMEDIATE");
+  try {
+    const result = connection.prepare(`
+      UPDATE OR IGNORE extension_testnet_checkouts SET tx_hash = ? WHERE id = ? AND tx_hash IS NULL
+    `).run(txHash, checkout.id);
+    if (!result.changes && readCheckout(owner, checkout.id).tx_hash !== txHash) {
+      throw new ExtensionDemoError("This transaction or checkout was already used.", 409);
+    }
+    connection.prepare(`UPDATE extension_demo_jobs SET state = 'browsing' WHERE id = ? AND state = 'awaiting-payment'`).run(checkout.id);
+    connection.exec("COMMIT");
+  } catch (error) {
+    connection.exec("ROLLBACK");
+    throw error;
+  }
+  return demoJob(owner, checkout.id);
+}
+
+export function browseDemoPage(owner: string, id: unknown, page: unknown) {
+  const job = readJob(owner, id);
+  if (job.state === "awaiting-payment") throw new ExtensionDemoError("Verify the testnet payment before browsing.", 402);
+  if (typeof page !== "number" || !Number.isInteger(page) || page < 1 || page > plans[job.plan]
+      || page > job.pages + 1 || (page > job.pages && job.state !== "browsing")) {
+    throw new ExtensionDemoError("Read pages in order up to the package limit.");
+  }
+  const result = demoCatalogPage(job.keyword, page);
+  if (page === job.pages + 1) {
+    const state = !result.hasNext || page === plans[job.plan] ? "ready" : "browsing";
+    database().prepare(`
+      UPDATE extension_demo_jobs SET pages = ?, state = ? WHERE id = ? AND state = 'browsing' AND pages = ?
+    `).run(page, state, job.id, job.pages);
+  }
+  return { ...result, job: demoJob(owner, job.id) };
+}
+
+export async function analyzeDemo(owner: string, id: unknown) {
+  const job = readJob(owner, id);
+  if (job.state === "awaiting-payment") throw new ExtensionDemoError("Verify the testnet payment before analysis.", 402);
+  const now = Date.now();
+  const lease = now + 90_000;
+  const claim = database().prepare(`
+    UPDATE extension_demo_jobs SET state = 'analyzing', lease_until = ?
+    WHERE id = ? AND (state = 'ready' OR (state = 'analyzing' AND lease_until <= ?))
+  `).run(lease, job.id, now);
+  if (!claim.changes) return demoJob(owner, job.id);
+
+  const evidence = summarizeDemoCatalog(job.keyword, plans[job.plan], job.pages);
+  try {
+    const { markdown } = await research(JSON.parse(job.order_json), evidence);
+    database().prepare(`
+      UPDATE extension_demo_jobs SET markdown = ?, state = 'complete', lease_until = NULL
+      WHERE id = ? AND state = 'analyzing' AND lease_until = ?
+    `).run(markdown, job.id, lease);
+  } catch {
+    database().prepare(`
+      UPDATE extension_demo_jobs SET state = 'failed', lease_until = NULL
+      WHERE id = ? AND state = 'analyzing' AND lease_until = ?
+    `).run(job.id, lease);
+  }
+  return demoJob(owner, job.id);
+}
+
+export function demoReport(owner: string, id: string) {
+  const job = readJob(owner, id);
+  if (job.state !== "complete" || !job.markdown) throw new ExtensionDemoError("The report is not ready.", 404);
+  return job.markdown;
+}
+
+export function issueReportTicket(owner: string, id: string) {
+  demoReport(owner, id);
+  const ticket = randomUUID();
+  const connection = database();
+  connection.prepare("DELETE FROM extension_demo_tickets WHERE expires_at <= ?").run(Date.now());
+  connection.prepare("INSERT INTO extension_demo_tickets VALUES (?, ?, ?, ?)")
+    .run(demoOwner(ticket), id, owner, Date.now() + 60_000);
+  return ticket;
+}
+
+export function redeemReportTicket(ticket: unknown) {
+  return database().prepare(`
+    DELETE FROM extension_demo_tickets WHERE ticket = ? AND expires_at > ? RETURNING job_id, owner
+  `).get(demoOwner(ticket), Date.now()) as { job_id: string; owner: string } | undefined;
+}
+
+let sessionKey: string | undefined;
+
+function reportSignature(owner: string, id: string, expiry: string) {
+  if (!sessionKey) {
+    const connection = database();
+    connection.prepare("INSERT OR IGNORE INTO extension_demo_configuration VALUES (1, ?)").run(randomUUID());
+    const configuration = connection.prepare("SELECT session_key FROM extension_demo_configuration WHERE id = 1")
+      .get() as { session_key: string };
+    sessionKey = configuration.session_key;
+  }
+  return createHmac("sha256", sessionKey).update(`${owner}.${id}.${expiry}`).digest();
+}
+
+export function createReportSession(owner: string, id: string) {
+  const expiry = String(Date.now() + 3_600_000);
+  return `${owner}.${expiry}.${reportSignature(owner, id, expiry).toString("hex")}`;
+}
+
+export function reportSessionOwner(token: string | undefined, id: string) {
+  const [owner, expiry, signature, extra] = token?.split(".") ?? [];
+  if (extra !== undefined || !/^[0-9a-f]{64}$/.test(owner) || !/^\d{13}$/.test(expiry)
+      || Number(expiry) <= Date.now() || !/^[0-9a-f]{64}$/.test(signature)) return;
+  if (timingSafeEqual(Buffer.from(signature, "hex"), reportSignature(owner, id, expiry))) return owner;
+}

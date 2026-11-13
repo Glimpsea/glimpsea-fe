@@ -1,4 +1,8 @@
-import type { OrderInput } from "./a2a";
+import { CATEGORY_LABELS, type OrderInput } from "./a2a";
+import { asObject, BriefValidationError, cafeProductPlan, describeProduct, planText, PRODUCT_PROMPT, requireText, validateProductPlan, type ProductPlan } from "./product-research";
+import type { summarizeDemoCatalog } from "./demo-catalog";
+
+type CatalogEvidence = ReturnType<typeof summarizeDemoCatalog>;
 
 const WALL_ART_TYPES = ["poster", "art print", "art print set"] as const;
 
@@ -29,12 +33,13 @@ type Plan = {
   criteria: { proceed: string; revise: string; stop: string };
 };
 
-export type Brief = Plan & {
-  schemaVersion: 1;
+type BriefMetadata = {
   provider: "near-ai-cloud" | "fixture";
   marketEvidence: "not-measured";
   sources: Source[];
+  catalogEvidence?: CatalogEvidence;
 };
+export type Brief = BriefMetadata & ((Plan & { schemaVersion: 1 }) | (ProductPlan & { schemaVersion: 2 }));
 
 type Usage = { inputTokens: number; outputTokens: number; model: string; costUsd?: number };
 
@@ -46,7 +51,6 @@ type ResearchResult = {
 };
 
 export class ResearchServiceError extends Error {}
-class BriefValidationError extends Error {}
 
 const DEFAULT_MODEL = "Qwen/Qwen3.6-35B-A3B-FP8";
 const THINKING_TOGGLE_MODELS = new Set([DEFAULT_MODEL, "Qwen/Qwen3.5-122B-A10B", "zai-org/GLM-5.1-FP8"]);
@@ -74,6 +78,13 @@ const domesticShipping: Source = {
   scope: "For shipments within the US, protect the print and measure packed size and weight before calculating postage. Applicability depends on the fulfillment origin.",
 };
 
+const podSample: Source = {
+  title: "Printful Help Center: Sample orders",
+  url: "https://help.printful.com/hc/en-us/articles/50261041946001-How-do-sample-orders-work",
+  observedAt: REFERENCE_DATE,
+  scope: "A print-on-demand provider offers samples for checking a design on a physical product. Check the provider's current sample terms and total cost separately.",
+};
+
 const europeanShipping: Source = {
   title: "Your Europe — Parcel services in the EU",
   url: "https://europa.eu/youreurope/business/selling-in-eu/selling-goods-services/parcel-services/index_en.htm",
@@ -91,9 +102,11 @@ function sourcesFor(order: OrderInput, fixture: boolean): Source[] {
   const sources = [{ ...buyerResearch }];
   if (order.format === "printable") {
     sources.push({ ...imageFormats });
-  } else {
+  }
+  if (order.format === "physical" || (!order.format && order.category !== "digital")) {
     sources.push({ ...(isUnitedStates(order.country) ? domesticShipping : europeanShipping) });
   }
+  if (!order.format && (!order.category || order.category === "pod")) sources.push({ ...podSample });
   if (order.sellerNotes && !fixture) {
     sources.push({
       title: "Seller-provided notes",
@@ -159,28 +172,6 @@ Choose "test" when one named concept fits the hour limit and the seller can show
 Return exactly one JSON object without Markdown or sources, in this shape:
 {"concepts":[{"title":"text","description":"text","productType":"poster","wallPlacement":"the wall above the seating area","deliverable":"one 11 × 14 in print-ready PDF","productionHours":2,"assumptions":"text"}],"decision":"test","selectedConcept":"exact concept title for test, or null for defer","recommendation":"text","evidenceGap":"text","test":"text","criteria":{"proceed":"text","revise":"text","stop":"text"}}
 Use an empty concepts array only for a defer decision where no concept fits the order.`;
-
-function asObject(value: unknown): Record<string, unknown> {
-  if (value === null || typeof value !== "object" || Array.isArray(value)) {
-    throw new BriefValidationError("Expected a JSON object.");
-  }
-  return value as Record<string, unknown>;
-}
-
-function requireText(value: unknown, maxLength: number): string {
-  if (typeof value !== "string" || !value.trim() || value.length > maxLength) {
-    throw new BriefValidationError("Expected nonempty bounded text.");
-  }
-  return value.trim();
-}
-
-function planText(value: unknown, maxLength: number): string {
-  const result = requireText(value, maxLength);
-  if (/https?:\/\/|www\.|\]\s*\(/iu.test(result)) {
-    throw new BriefValidationError("Unexpected link in research plan.");
-  }
-  return result;
-}
 
 const nonDecorativeProduct = /\b(?:menus?|menu\s*boards?|signage|(?:directional|wayfinding|open|closed|restroom|promotional|business)\s+signs?|price\s+lists?|logos?|branding\s+(?:assets?|kits?|templates?)|icons?|pictograms?|clip\s*art|stickers?|decals?|flyers?|labels?|wrapping\s+paper|packaging\s+designs?|(?:editable|reusable)\s+(?:assets?|graphics?|templates?|files?))\b/i;
 
@@ -260,23 +251,31 @@ function markdownText(value: string): string {
 
 function renderBrief(brief: Brief, order: OrderInput): string {
   const lines = [
-    "# Glimpsea wall art brief",
+    brief.schemaVersion === 1 ? "# Glimpsea wall art brief" : "# Glimpsea product research brief",
     "",
     `**Audience:** ${markdownText(order.audience)} · ${markdownText(order.country)}`,
-    `**Format:** ${order.format} · up to ${order.productionHours} hours of seller work`,
+    `**Scope:** ${order.format ?? (order.category ? CATEGORY_LABELS[order.category] : "Compare all three categories")} · up to ${order.productionHours} hours of seller work`,
+    ...(order.budgetUsd === undefined ? [] : [`**Setup budget:** ${order.budgetUsd} USD`]),
     brief.provider === "fixture"
       ? "**Research mode:** Demo fixture. The example is fixed and omits seller notes."
       : "**Research mode:** NEAR AI Cloud. References were curated in advance.",
     "",
     "Marketplace demand has not been measured. The concepts and test criteria are hypotheses and estimates.",
     "",
-    "## Concepts",
-    "",
   ];
+  if (brief.catalogEvidence) {
+    const { keyword, maxPages, pagesRead, counts } = brief.catalogEvidence;
+    lines.push("## Demo catalog coverage", "",
+      `Keyword: ${markdownText(keyword)}. Pages read: ${pagesRead} of up to ${maxPages}.`, "",
+      `Synthetic listings: ${counts.digital} digital, ${counts.pod} print-on-demand, ${counts.personalized} personalized.`, "");
+  }
+  lines.push("## Concepts", "");
   if (brief.concepts.length === 0) {
     lines.push("No concept proposed within the current constraints.", "");
   }
-  for (const concept of brief.concepts) {
+  if (brief.schemaVersion === 2) {
+    for (const concept of brief.concepts) lines.push(...describeProduct(concept, markdownText));
+  } else for (const concept of brief.concepts) {
     lines.push(
       `### ${markdownText(concept.title)}`,
       "",
@@ -337,12 +336,13 @@ function parseUsage(result: Record<string, unknown>, model: string): Usage | und
   return { inputTokens, outputTokens, model: typeof result.model === "string" ? result.model : model };
 }
 
-async function runCloud(order: OrderInput, sources: Source[]): Promise<{ plan: Plan; usage?: Usage }> {
+async function runCloud<T>(order: OrderInput, sources: Source[], prompt: string,
+  validate: (value: unknown, order: OrderInput) => T, catalogEvidence?: CatalogEvidence): Promise<{ plan: T; usage?: Usage }> {
   const key = process.env.NEAR_AI_API_KEY?.trim();
   if (!key) throw new Error("NEAR_AI_API_KEY is required for NEAR AI Cloud research.");
 
   const model = process.env.NEAR_AI_MODEL?.trim() || DEFAULT_MODEL;
-  const maxTokens = readLimit("GLIMPSEA_RESEARCH_MAX_TOKENS", 1800, 512, 4096);
+  const maxTokens = readLimit("GLIMPSEA_RESEARCH_MAX_TOKENS", order.format ? 1800 : 2600, 512, 4096);
   const timeout = readLimit("GLIMPSEA_RESEARCH_TIMEOUT_MS", 30_000, 1000, 60_000);
   const signal = AbortSignal.timeout(timeout);
   let reason = "";
@@ -361,8 +361,8 @@ async function runCloud(order: OrderInput, sources: Source[]): Promise<{ plan: P
           max_completion_tokens: tokensLeft,
           ...(THINKING_TOGGLE_MODELS.has(model) ? { chat_template_kwargs: { enable_thinking: false } } : {}),
           messages: [
-            { role: "system", content: reason ? `${SYSTEM_PROMPT}\n\nWrite a fresh brief. Fix this validation error: ${reason}` : SYSTEM_PROMPT },
-            { role: "user", content: JSON.stringify({ order, references: sources }) },
+            { role: "system", content: reason ? `${prompt}\n\nWrite a fresh brief. Fix this validation error: ${reason}` : prompt },
+            { role: "user", content: JSON.stringify({ order, references: sources, catalogEvidence }) },
           ],
         }),
       });
@@ -386,7 +386,7 @@ async function runCloud(order: OrderInput, sources: Source[]): Promise<{ plan: P
       const message = asObject(choice.message);
       const content = requireText(message.content, 16_000);
       const json = content.match(/^```(?:json)?\s*([\s\S]+?)\s*```$/i)?.[1] ?? content;
-      return { plan: validatePlan(JSON.parse(json), order), usage: attemptUsage && usage };
+      return { plan: validate(JSON.parse(json), order), usage: attemptUsage && usage };
     } catch (error) {
       if (signal.aborted) throw new ResearchServiceError("NEAR AI Cloud research timed out.");
       reason = error instanceof BriefValidationError ? error.message : "Expected valid JSON.";
@@ -396,32 +396,53 @@ async function runCloud(order: OrderInput, sources: Source[]): Promise<{ plan: P
   throw new ResearchServiceError(`NEAR AI Cloud returned an invalid research brief. ${reason}`);
 }
 
-export async function research(input: OrderInput): Promise<ResearchResult> {
+export async function research(input: OrderInput, catalogEvidence?: CatalogEvidence): Promise<ResearchResult> {
   const order: OrderInput = {
     country: requireText(input.country, 120),
     audience: requireText(input.audience, 400),
     format: input.format,
+    category: input.category,
     productionHours: input.productionHours,
+    budgetUsd: input.budgetUsd,
     sellerNotes: input.sellerNotes?.trim() ? requireText(input.sellerNotes, 2000) : undefined,
   };
-  if ((order.format !== "printable" && order.format !== "physical") ||
-      !Number.isFinite(order.productionHours) || order.productionHours <= 0) {
-    throw new Error("Research requires a supported wall art format and a positive production-hour budget.");
+  if (!Number.isFinite(order.productionHours) || order.productionHours <= 0) {
+    throw new Error("Research requires a positive production-hour budget.");
   }
   const mode = process.env.GLIMPSEA_RESEARCH_MODE?.trim();
   if (mode && mode !== "fixture" && mode !== "near-ai-cloud") {
     throw new Error("GLIMPSEA_RESEARCH_MODE must be fixture or near-ai-cloud.");
   }
   const fixture = mode === "fixture";
-  if (fixture && (order.format !== "printable" || order.productionHours !== 4 ||
+  if (fixture && ((order.format && order.format !== "printable") || order.budgetUsd !== undefined || order.productionHours !== 4 ||
       !isUnitedStates(order.country) || !/\bcaf[eé][\s-]+(?:shop[\s-]+)?owners?\b/iu.test(order.audience))) {
-    throw new Error("The demo fixture requires printable wall art for US cafe owners with a 4-hour production budget.");
+    throw new Error("The demo fixture requires US cafe owners with a 4-hour production budget.");
   }
   const provider = fixture ? "fixture" : "near-ai-cloud";
   const sources = sourcesFor(order, fixture);
+  const metadata: BriefMetadata = { provider, marketEvidence: "not-measured", sources, ...(catalogEvidence && { catalogEvidence }) };
+  if (order.format) {
+    const { plan, usage } = fixture
+      ? { plan: validatePlan(demoPlan, order), usage: undefined }
+      : await runCloud(order, sources, SYSTEM_PROMPT, validatePlan);
+    const brief: Brief = { schemaVersion: 1, ...plan, ...metadata };
+    return { brief, markdown: renderBrief(brief, order), provider, usage };
+  }
   const { plan, usage } = fixture
-    ? { plan: validatePlan(demoPlan, order), usage: undefined }
-    : await runCloud(order, sources);
-  const brief: Brief = { schemaVersion: 1, ...plan, provider, marketEvidence: "not-measured", sources };
-  return { brief, markdown: renderBrief(brief, order), provider, ...(usage ? { usage } : {}) };
+    ? { plan: validateProductPlan(order.category ? {
+      ...cafeProductPlan,
+      concepts: cafeProductPlan.concepts.filter((idea) => idea.category === order.category),
+      decision: "defer",
+      selectedConcept: null,
+      recommendation: "Confirm the assumptions and costs in this sample before choosing a concept to test.",
+      test: "Once the costs are clear, show a mockup to five US cafe owners within seven days.",
+      criteria: {
+        proceed: "Proceed if two owners ask for a price.",
+        revise: "Revise if two owners describe the same obstacle.",
+        stop: "Pause if neither happens.",
+      },
+    } : cafeProductPlan, order), usage: undefined }
+    : await runCloud(order, sources, PRODUCT_PROMPT, validateProductPlan, catalogEvidence);
+  const brief: Brief = { schemaVersion: 2, ...plan, ...metadata };
+  return { brief, markdown: renderBrief(brief, order), provider, usage };
 }

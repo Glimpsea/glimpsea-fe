@@ -21,7 +21,7 @@ type Row = {
 };
 
 let database: DatabaseSync | undefined;
-function db() {
+export function db() {
   if (database) return database;
   const path = resolve(/* turbopackIgnore: true */ process.cwd(), process.env.GLIMPSEA_DB_PATH || ".data/glimpsea.sqlite");
   mkdirSync(dirname(path), { recursive: true });
@@ -102,7 +102,8 @@ function asTask(row: Row): Task {
       state: row.state,
       ...(row.note && { message: { parts: [{ text: row.note }] } }),
     },
-    ...(row.markdown && { artifacts: [{ name: "Etsy wall art research brief", parts: [{ text: row.markdown }] }] }),
+    ...(row.markdown && { artifacts: [{ name: row.markdown.startsWith("# Glimpsea wall art brief")
+      ? "Etsy wall art research brief" : "Etsy product research brief", parts: [{ text: row.markdown }] }] }),
     metadata: {
       payment: { mode: "simulated", state: row.payment_state, amount: row.amount },
       ...(report && { research: report }),

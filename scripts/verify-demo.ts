@@ -24,10 +24,11 @@ if (missingKey) {
   const json = text.match(/```json\s*([\s\S]+?)\s*```/)?.[1];
   assert.ok(json, "The agent needs a JSON block in the delivered brief.");
   const brief = JSON.parse(json);
-  assert.equal(brief.schemaVersion, 1);
-  assert.ok(brief.concepts.length <= 3);
+  assert.equal(brief.schemaVersion, 2);
+  assert.deepEqual(brief.concepts.map((idea: { category: string }) => idea.category).sort(), ["digital", "personalized", "pod"]);
   assert.ok(brief.concepts.every((concept: { productionHours: number }) => concept.productionHours <= 4));
-  assert.ok(["test", "defer"].includes(brief.decision));
+  assert.equal(brief.decision, "test");
+  assert.ok(brief.concepts.some((concept: { title: string }) => concept.title === brief.selectedConcept));
   assert.ok(brief.test);
   assert.ok(valid.metadata.research?.provider);
   console.log("PASS Buyer received a readable brief and the simulated payment settled.");
@@ -38,6 +39,15 @@ assert.equal(rejected.status.state, "TASK_STATE_REJECTED");
 assert.equal(rejected.metadata.payment.state, "released");
 assert.equal(rejected.artifacts, undefined);
 console.log("PASS The agent rejected an unsupported market and released the simulated payment.");
+
+for (const category of ["digital", "pod", "personalized", "unsupported"]) {
+  const response = await send("SendMessage", {
+    message: { messageId: crypto.randomUUID(), role: "ROLE_USER", parts: [{ data: { ...sampleOrder, category } }] },
+  });
+  if (category === "unsupported") assert.equal((await response.json()).error.code, -32602);
+  else assert.equal(response.status, 402);
+}
+console.log("PASS The API accepts all supported category filters and rejects an unknown category before payment.");
 
 await assert.rejects(runBuyer({ endpoint, maxAmount: 1n }), /exceeds/);
 console.log("PASS The buyer did not authorize a quote above its budget.");

@@ -1,5 +1,5 @@
 import { after } from "next/server";
-import type { OrderInput, SimulatedOffer } from "@/lib/a2a";
+import { PRODUCT_CATEGORIES, type OrderInput, type SimulatedOffer } from "@/lib/a2a";
 import { authorize, getTask, processTask, quote } from "@/lib/orders";
 
 export const runtime = "nodejs";
@@ -40,14 +40,21 @@ async function readRequest(request: Request) {
 }
 
 function orderInput(value: unknown): OrderInput | undefined {
-  const { country, audience, format, productionHours, sellerNotes } = record(value);
+  const { country, audience, category, format, productionHours, budgetUsd, sellerNotes } = record(value);
+  const supportedCategory = PRODUCT_CATEGORIES.find((item) => item === category);
   if (typeof country !== "string" || !/^[A-Za-z]{2}$/.test(country)
       || typeof audience !== "string" || !audience.trim() || audience.length > 180
-      || (format !== "printable" && format !== "physical")
+      || (category !== undefined && !supportedCategory)
+      || (format !== undefined && ((format !== "printable" && format !== "physical") || category !== undefined || budgetUsd !== undefined))
       || typeof productionHours !== "number" || !Number.isFinite(productionHours) || productionHours <= 0 || productionHours > 80
+      || (budgetUsd !== undefined && (typeof budgetUsd !== "number" || !Number.isFinite(budgetUsd) || budgetUsd < 0 || budgetUsd > 100_000))
       || (sellerNotes !== undefined && (typeof sellerNotes !== "string" || sellerNotes.length > 1000))) return;
   return {
-    country: country.toUpperCase(), audience: audience.trim(), format, productionHours,
+    country: country.toUpperCase(), audience: audience.trim(),
+    ...(format && { format }),
+    productionHours,
+    ...(supportedCategory && { category: supportedCategory }),
+    ...(budgetUsd !== undefined && { budgetUsd }),
     ...(typeof sellerNotes === "string" && sellerNotes.trim() && { sellerNotes: sellerNotes.trim() }),
   };
 }
@@ -99,7 +106,7 @@ export async function POST(request: Request) {
     try { input = JSON.parse(part.text); } catch { /* The next check reports the required fields. */ }
   }
   const order = orderInput(input);
-  if (!order) return fail(id, -32602, "Send the country code, audience, format, and production hours in the order.");
+  if (!order) return fail(id, -32602, "Send a country code, audience, and production hours. The optional category is digital, pod, or personalized.");
 
   const payment = request.headers.get("X-PAYMENT");
   if (payment === null) {

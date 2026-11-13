@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
-import "@fontsource/permanent-marker/latin-400.css";
-import "@fontsource/special-elite/latin-400.css";
-import "@fontsource/courier-prime/latin-400.css";
-import "@fontsource/courier-prime/latin-700.css";
+import "@fontsource/inter/latin-400.css";
+import "@fontsource/inter/latin-600.css";
+import "@fontsource/fraunces/latin-400-italic.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Glimpsea | Etsy Wall Art Research",
-  description: "See how a buyer agent orders an Etsy wall art research brief.",
+  title: "Glimpsea | Etsy Product Research",
+  description: "See how a buyer agent compares Etsy product ideas and picks one to test.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

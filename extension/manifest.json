@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Glimpsea Research Demo",
+  "version": "0.1.0",
+  "description": "Compare Etsy product ideas using Glimpsea's synthetic demo catalog.",
+  "permissions": ["sidePanel", "storage"],
+  "host_permissions": ["http://127.0.0.1/*"],
+  "side_panel": { "default_path": "panel.html" },
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "Open Glimpsea" }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { BriefCopy } from "./brief-copy";
 import { runBuyer, sampleOrder, type BuyerEvent } from "@/lib/buyer";
 
 const steps = [
@@ -20,7 +21,6 @@ const usdcAmount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, ma
 
 const market = new Intl.DisplayNames(["en"], { type: "region" }).of(sampleOrder.country);
 const audience = sampleOrder.audience.replace(/^US cafe/, "Cafe");
-const product = `${sampleOrder.format[0].toUpperCase()}${sampleOrder.format.slice(1)} wall art`;
 
 type BuyerTask = Awaited<ReturnType<typeof runBuyer>>;
 
@@ -28,45 +28,6 @@ function briefFromTask(task: BuyerTask) {
   return (task.artifacts ?? []).flatMap((artifact) => artifact.parts)
     .flatMap((part) => part.text ? [part.text] : [])
     .join("\n\n");
-}
-
-function unescapeText(text: string) {
-  return text.replace(/\\([\\`*_{}[\]()<>~|&!])/g, "$1");
-}
-
-function briefLine(line: string) {
-  const label = line.match(/^\*\*([^*]+)\*\* (.*)$/);
-  if (label) return <><strong>{label[1]}</strong> {unescapeText(label[2])}</>;
-
-  const reference = line.match(/^\[(.+)\]\((https?:\/\/[^\s)]+)\)(.*)$/);
-  if (reference) {
-    return (
-      <>
-        <a href={reference[2]} target="_blank" rel="noreferrer">{unescapeText(reference[1])}</a>
-        <span className="reference-note">{unescapeText(reference[3]).replace(/^ · /, "")}</span>
-      </>
-    );
-  }
-
-  return unescapeText(line);
-}
-
-function BriefCopy({ markdown }: { markdown: string }) {
-  return (
-    <div className="brief-copy">
-      {markdown.split(/\n{2,}/).map((block, index) => {
-        if (block === "# Glimpsea wall art brief") return null;
-        if (block.startsWith("## ")) return <h3 key={index}>{unescapeText(block.slice(3))}</h3>;
-        if (block.startsWith("### ")) return <h4 key={index}>{unescapeText(block.slice(4))}</h4>;
-
-        const lines = block.split("\n");
-        if (lines.every((line) => line.startsWith("- "))) {
-          return <ul key={index}>{lines.map((line, row) => <li key={row}>{briefLine(line.slice(2))}</li>)}</ul>;
-        }
-        return <p key={index}>{lines.map((line, row) => <span key={row}>{briefLine(line)}</span>)}</p>;
-      })}
-    </div>
-  );
 }
 
 export default function DemoClient() {
@@ -111,14 +72,15 @@ export default function DemoClient() {
 
   return (
     <>
-      <section className="demo" id="demo" aria-labelledby="demo-title">
+      <section className="demo-band" id="demo" aria-labelledby="demo-title">
+        <div className="demo wrap">
         <div className="request">
           <h2 id="demo-title">Sample order</h2>
           <dl className="request-details">
-            <div><dt>Product</dt><dd>{product}</dd></div>
+            <div><dt>Category</dt><dd>Open to all three</dd></div>
             <div><dt>Buyers</dt><dd>{audience}</dd></div>
             <div><dt>Market</dt><dd>{market}</dd></div>
-            <div><dt>Design and file prep</dt><dd>{sampleOrder.productionHours} hours max</dd></div>
+            <div><dt>Seller work</dt><dd>{sampleOrder.productionHours} hours max</dd></div>
           </dl>
           <button className="run-button" type="button" disabled={running} onClick={start}>
             {running ? "Buyer agent is running" : task || error ? "Run buyer agent again" : "Run buyer agent"}
@@ -151,9 +113,10 @@ export default function DemoClient() {
             </div>
           )}
         </div>
+        </div>
       </section>
 
-      <section className="brief" aria-labelledby="brief-title">
+      <section className="brief wrap" id="brief" aria-labelledby="brief-title">
         <div className="brief-heading">
           <h2 id="brief-title">Research brief</h2>
           {artifact && research && (

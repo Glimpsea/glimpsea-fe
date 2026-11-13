@@ -1,9 +1,16 @@
 import assert from "node:assert/strict";
 import { sampleOrder } from "../src/lib/buyer";
 import { research } from "../src/lib/research";
+import { cafeProductPlan, validateProductPlan } from "../src/lib/product-research";
+import type { OrderInput } from "../src/lib/a2a";
 
 process.env.GLIMPSEA_RESEARCH_MODE = "fixture";
-const fixture = await research(sampleOrder);
+const discovery = await research(sampleOrder);
+assert.equal(discovery.brief.schemaVersion, 2);
+assert.deepEqual(discovery.brief.concepts.map((idea) => idea.category), ["digital", "pod", "personalized"]);
+const legacyOrder: OrderInput = { ...sampleOrder, format: "printable" };
+const fixture = await research(legacyOrder);
+assert.equal(fixture.brief.schemaVersion, 1);
 const { concepts, decision, selectedConcept, recommendation, evidenceGap, test, criteria } = fixture.brief;
 const plan = { concepts, decision, selectedConcept, recommendation, evidenceGap, test, criteria };
 
@@ -29,7 +36,7 @@ async function runWithPlan(output: object, repair?: object) {
   }, originalFetch);
 
   try {
-    return await research(sampleOrder);
+    return await research(legacyOrder);
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -63,3 +70,13 @@ assert.equal(repaired.brief.concepts.length, 3);
 assert.equal(repaired.usage?.outputTokens, 1000);
 
 console.log("PASS Wall art brief accepted. Off-scope alternatives, incomplete deliverables, and over-budget concepts rejected.");
+
+const [digital, pod, personalized] = cafeProductPlan.concepts;
+assert.throws(() => validateProductPlan({ ...cafeProductPlan, concepts: [digital, pod, { ...personalized, category: "pod" }] }, sampleOrder), /include one digital/);
+assert.throws(() => validateProductPlan({ ...cafeProductPlan, concepts: [digital, pod, { ...personalized, productionHours: 4.5 }] }, sampleOrder), /production hours/);
+assert.throws(() => validateProductPlan({ ...cafeProductPlan, concepts: [digital, pod, { ...personalized, personalizationInputs: ["Cafe name", "Opening hours"] }] }, sampleOrder), /exactly one buyer input/);
+assert.throws(() => validateProductPlan({ ...cafeProductPlan, concepts: [digital, { ...pod, estimatedSetupUsd: 20 }, personalized] }, { ...sampleOrder, budgetUsd: 10 }), /within budget/);
+assert.throws(() => validateProductPlan({ ...cafeProductPlan, selectedConcept: "Unknown idea" }, sampleOrder), /exact title/);
+assert.throws(() => validateProductPlan(cafeProductPlan, { ...sampleOrder, category: "digital" }), /allowed product category/);
+assert.equal(validateProductPlan({ ...cafeProductPlan, concepts: [digital] }, { ...sampleOrder, category: "digital" }).concepts.length, 1);
+console.log("PASS Discovery requires three categories, respects time and budget, and selects an idea from the brief.");

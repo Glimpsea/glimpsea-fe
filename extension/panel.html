@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Glimpsea Research</title>
+  <link rel="stylesheet" href="panel.css">
+  <script defer src="panel.js"></script>
+</head>
+<body>
+  <main>
+    <h1>Glimpsea</h1>
+    <p id="demo-note">Explore products in a synthetic catalog.</p>
+    <p id="wallet-status"></p>
+    <button id="connect-wallet" type="button" hidden>Connect NEAR testnet wallet</button>
+    <button id="disconnect-wallet" class="secondary" type="button" hidden>Disconnect wallet</button>
+    <form id="research" hidden>
+      <label>Keyword <input name="keyword" value="cafe owner supplies" required maxlength="120"></label>
+      <label>Target buyers in the US <input name="audience" value="US cafe owners" required maxlength="180"></label>
+      <label>Hours to prepare the first product <input name="productionHours" type="number" value="4" min="0.5" max="80" step="0.5" required></label>
+      <label>Category
+        <select name="category">
+          <option value="">Compare all three</option>
+          <option value="digital">Digital</option>
+          <option value="pod">Print-on-demand</option>
+          <option value="personalized">Simple personalization</option>
+        </select>
+      </label>
+      <label>Package
+        <select name="plan">
+          <option value="basic">Basic · up to 2 pages</option>
+          <option value="medium">Medium · up to 5 pages</option>
+          <option value="deep">Deep · up to 10 pages</option>
+        </select>
+      </label>
+      <label>Access
+        <select name="access">
+          <option value="trial">Use one Basic trial</option>
+          <option value="simulated-payment">Simulate payment</option>
+        </select>
+      </label>
+      <p id="trials"></p>
+      <button type="submit">Start research</button>
+    </form>
+    <p role="status" id="status">Connect to the local Glimpsea demo to start.</p>
+    <button id="checkout" type="button" hidden>Open testnet checkout</button>
+    <button id="open-report" type="button" hidden>Open private demo report</button>
+    <div id="history" aria-label="Research history"></div>
+  </main>
+</body>
+</html>

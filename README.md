@@ -1,17 +1,44 @@
 # Glimpsea
 
-Glimpsea sells Etsy wall art research to AI agents that work for sellers. A buyer agent sends an order and receives a brief through A2A. A2A is a protocol that agents use to exchange messages and results.
+Glimpsea is a Chrome extension that helps Etsy sellers decide what to make. It searches a synthetic catalog and compares digital downloads, print-on-demand products, and simple personalized items. Sellers can sign in with a NEAR testnet wallet, run two Basic trials, and pay for more research. Glimpsea also has an A2A endpoint for agents that exchange orders and briefs.
 
-The demo asks for printable wall art for cafe owners in the US. The seller has four hours to design the art and prepare the print files.
+The demo compares a digital download, a print-on-demand product, and a personalized product for cafe owners in the US. The seller has four hours to prepare a first product. The brief compares the three ideas and picks one to test.
 
-## Run the demo
+## Install the Chrome extension
 
-Install Node.js 22.13 or later and Bun.
+Install Chrome, Node.js 22.22.2 or later, and Bun.
 
-1. Run `bun install` in this directory.
-2. Copy `.env.example` to `.env.local`.
-3. Run `bun run dev`.
-4. Open [the local demo](http://127.0.0.1:3000).
+1. Clone this repository. Run `bun install` in its root directory.
+2. If `.env.local` is missing, copy `.env.example` to `.env.local`.
+3. Set `GLIMPSEA_NEAR_TESTNET_RECEIVER` in `.env.local` to a payment receiver on NEAR testnet. Use a different funded testnet account to pay.
+4. Start the local extension server on port 3045.
+
+   ```sh
+   GLIMPSEA_EXTENSION_NEAR_TESTNET=1 GLIMPSEA_RESEARCH_MODE=fixture bun run dev --port 3045
+   ```
+
+5. Open `chrome://extensions`. Turn on **Developer mode** and select **Load unpacked**.
+6. Select the `extension` folder in the repository. Open **Glimpsea Research Demo** from the Chrome extensions menu.
+
+## Testnet wallet and checkout
+
+1. In the side panel, select **Connect NEAR testnet wallet**. Choose a wallet and sign the login message in the new tab.
+2. Return to the side panel. Keep the sample keyword, US cafe owners, and four-hour limit in fixture mode.
+3. Choose **Basic** and **Use one Basic trial**. Start research and open the private report. Run a second Basic trial.
+4. With zero trials left, select **Pay on NEAR testnet** and start a third order. Select **Open testnet checkout** and approve the quoted transfer in your wallet.
+5. After Glimpsea verifies the transfer, select **Resume research** in the side panel. Open the report when it is ready.
+
+Each NEAR account gets two Basic trials. Signing in again keeps the same quota and report history. Only the signed-in owner can open a private report. The third job stays locked until the server verifies a final transfer from that account for the exact quote.
+
+Basic, Medium, and Deep scan up to 2, 5, and 10 pages. Their testnet prices start at 0.01, 0.03, and 0.06 NEAR. Each quote adds a small unique amount. If your wallet redirects after payment, paste the transaction hash in checkout. The same hash can confirm the same order again.
+
+The checkout test completed two Basic trials, then used a transfer of `0.010000333482111037 NEAR` on testnet to unlock the third job. [Third research payment on NEAR testnet](https://testnet.nearblocks.io/txns/P93USZtc2iAbELrBuKoy1ddjSm9w4jnmARF6PncqehJ)
+
+If NearBlocks asks for a browser check, use the NEAR testnet RPC with hash `P93USZtc2iAbELrBuKoy1ddjSm9w4jnmARF6PncqehJ` and sender `glimpsea-d15aafd4df.testnet`. [NEAR transaction lookup](https://docs.near.org/api/rpc/transactions)
+
+## Run the web demo
+
+Run `bun run dev` in this directory. Open [the local demo](http://127.0.0.1:3000).
 
 Select **Run buyer agent**. You can also run `bun run demo` in a second terminal. The command prints the brief and its JSON block to standard output.
 
@@ -23,11 +50,13 @@ Set `GLIMPSEA_RESEARCH_MODE=near-ai-cloud` in `.env.local`. Add your `NEAR_AI_AP
 
 The API uses the sources listed in the brief. A concept and its estimated production time are hypotheses. The brief includes a small test to help the seller assess interest. [NEAR AI Cloud setup](https://docs.near.ai/cloud/quickstart)
 
-Each concept must name a finished piece of wall art, where it hangs, and what the buyer receives. If the brief fails a check, Glimpsea can request one correction within the remaining token and time limits. If no brief passes, Glimpsea releases the simulated payment.
+Each concept names the product, what the buyer receives, the time estimate, and which costs to check. If a check fails, Glimpsea can request one correction within the remaining token and time limits. If no brief passes, Glimpsea releases the simulated payment.
 
 ## Connect a buyer agent
 
 Read the agent card at `/.well-known/agent-card.json`. Send JSON-RPC requests to `/a2a/v1`.
+
+Send `country`, `audience`, and `productionHours` in the order. You can include `sellerNotes` and a setup limit in USD as `budgetUsd`. Omit `category` to compare all three categories. To focus the order, set it to `digital`, `pod`, or `personalized`. These orders return brief schema 2. Legacy wall art orders with `format` still return schema 1.
 
 1. Call `SendMessage` with a new message UUID. Include the order in one data part.
 2. Read the quote from the HTTP 402 response. Check the quote against the buyer's budget.
@@ -42,6 +71,24 @@ SQLite stores the order, task status, brief, model usage, and simulated payment.
 
 Run `bun run verify:demo` with the demo server running in fixture mode. The checks cover delivery, a rejected order, a budget limit, and repeated authorizations.
 
-Run `bun scripts/verify-research.ts` to test the wall art filter with sample model responses.
+Run `bun scripts/verify-research.ts` to test the wall art and cross-category checks with sample model responses.
 
 If you start the server in Cloud mode without an API key, run `bun run verify:demo --missing-cloud-key`. This checks that a research failure releases the simulated authorization.
+
+## Test the extension in simulation mode
+
+Run the local server from this directory:
+
+```sh
+GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_RESEARCH_MODE=fixture bun run dev --port 3045
+```
+
+Load the extension as described above. Use a Basic trial to scan two catalog pages. Select **Simulate payment** to try the five-page or ten-page package. Open the report from the side panel after the scan finishes.
+
+For NEAR AI Cloud research, use `GLIMPSEA_RESEARCH_MODE=near-ai-cloud` and set `NEAR_AI_API_KEY` in `.env.local`. Both modes use the synthetic catalog. The simulation assigns two trials to a browser identity.
+
+With the fixture server running on port 3045, run `bun scripts/verify-extension.ts` to check page limits, trial use, and report access.
+
+## Verify checkout with a test transfer
+
+To run the checkout test, use a fresh database and two disposable accounts with faucet funds. Set `GLIMPSEA_TEST_PAYER_FILE` and `GLIMPSEA_TEST_OTHER_FILE` to local JSON files with `id` and `secret`. The second account must match the configured receiver. Run `bun scripts/verify-testnet-checkout.ts`. The test sends one payment on NEAR testnet.

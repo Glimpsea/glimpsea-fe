@@ -3,7 +3,6 @@ import type { OrderInput, SimulatedOffer, Task } from "./a2a";
 export const sampleOrder: OrderInput = {
   country: "US",
   audience: "US cafe owners",
-  format: "printable",
   productionHours: 4,
 };
 

@@ -1,8 +1,19 @@
+export const PRODUCT_CATEGORIES = ["digital", "pod", "personalized"] as const;
+export type ProductCategory = typeof PRODUCT_CATEGORIES[number];
+
+export const CATEGORY_LABELS: Record<ProductCategory, string> = {
+  digital: "Digital download",
+  pod: "Print-on-demand",
+  personalized: "Simple personalization",
+};
+
 export type OrderInput = {
   country: string;
   audience: string;
-  format: "printable" | "physical";
+  category?: ProductCategory;
+  format?: "printable" | "physical";
   productionHours: number;
+  budgetUsd?: number;
   sellerNotes?: string;
 };
 
