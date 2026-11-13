@@ -2,7 +2,14 @@
 const origin = "http://127.0.0.1:3045";
 const catalogButton = document.querySelector("#open-catalog");
 const form = document.querySelector("#research");
-const startButton = form.querySelector("button");
+const options = document.querySelector("#research-options");
+const startButton = document.querySelector("#start-analysis");
+const etsyKeyword = document.querySelector("#etsy-keyword");
+const keywordError = document.querySelector("#keyword-error");
+const allowEtsyButton = document.querySelector("#allow-etsy");
+const openEtsyButton = document.querySelector("#open-etsy");
+const accessNote = document.querySelector("#access-note");
+const reportScope = document.querySelector("#report-scope");
 const reportButton = document.querySelector("#open-report");
 const checkoutButton = document.querySelector("#checkout");
 const connectButton = document.querySelector("#connect-wallet");
@@ -21,6 +28,11 @@ let token;
 let accountId;
 let mode;
 let working = false;
+let etsyTabKeyword = "";
+let etsyReadVersion = 0;
+const sampleKeyword = form.elements.keyword.defaultValue;
+const etsyPermission = { origins: ["https://www.etsy.com/*"] };
+const startingPrices = { basic: "0.01", medium: "0.03", deep: "0.06" };
 
 async function request(path, data) {
   const response = await fetch(origin + path, {
@@ -49,6 +61,82 @@ function etsySearch(url) {
   if (!url) return;
   const parsed = URL.parse(url);
   if (parsed?.origin === "https://www.etsy.com" && parsed.pathname === "/search") return parsed;
+}
+
+function liveSelected() {
+  return Boolean(mode?.etsyLive && form.elements.source.value === "etsy");
+}
+
+function pendingJob() {
+  return activeJob && !["complete", "failed"].includes(activeJob.state);
+}
+
+function updateControls() {
+  options.disabled = working || Boolean(pendingJob());
+  startButton.disabled = working || (liveSelected() && !pendingJob() && !etsyTabKeyword);
+  startButton.classList.toggle("secondary", !checkoutButton.hidden || !reportButton.hidden);
+}
+
+function updateScope() {
+  if (!liveSelected()) return;
+  const keyword = pendingJob() ? activeJob.keyword : etsyTabKeyword;
+  const cafe = /\b(?:caf[eé]|coffee shop|barista)\b/i;
+  reportScope.hidden = !keyword;
+  reportScope.textContent = cafe.test(keyword) && cafe.test(form.elements.audience.value)
+    ? "Report: listings, displayed prices, and three product ideas for cafe owners."
+    : "Report: listings and displayed prices. Product ideas are available for cafe searches with a cafe audience.";
+}
+
+async function updateEtsyKeyword() {
+  const version = ++etsyReadVersion;
+  if (!liveSelected()) return;
+  const granted = await chrome.permissions.contains(etsyPermission);
+  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (version !== etsyReadVersion || !liveSelected()) return;
+  const keyword = etsySearch(tab?.url)?.searchParams.get("q") ?? "";
+  etsyTabKeyword = keyword.trim() && keyword.length <= 120 ? keyword : "";
+  if (pendingJob()) {
+    etsyKeyword.textContent = activeJob.keyword;
+  } else if (etsyTabKeyword) {
+    etsyKeyword.textContent = etsyTabKeyword;
+  } else {
+    etsyKeyword.textContent = !granted ? "Allow access to show the keyword from your Etsy tab."
+      : keyword.length > 120 ? "Use an Etsy keyword of 120 characters or fewer."
+      : "Open Etsy search results in this window.";
+  }
+  allowEtsyButton.hidden = granted || Boolean(pendingJob());
+  openEtsyButton.hidden = !granted || Boolean(etsyTabKeyword) || Boolean(pendingJob());
+  updateScope();
+  updateControls();
+}
+
+function showReadyStatus() {
+  status.textContent = liveSelected()
+    ? "Etsy research reads up to two results pages after you start a trial or verify payment."
+    : "Ready to search the sample catalog.";
+}
+
+function clearKeywordError() {
+  keywordError.hidden = true;
+  form.elements.keyword.removeAttribute("aria-invalid");
+}
+
+async function updateSource() {
+  const live = liveSelected();
+  for (const [id, name] of [["catalog-keyword", "keyword"], ["category-field", "category"], ["plan-field", "plan"]]) {
+    document.getElementById(id).hidden = live;
+    form.elements[name].disabled = live;
+  }
+  for (const id of ["etsy-search", "etsy-plan"]) document.getElementById(id).hidden = !live;
+  catalogButton.hidden = live;
+  clearKeywordError();
+  if (!live) reportScope.hidden = true;
+  document.querySelector("#demo-note").textContent = live
+    ? "Read listings from the Etsy search beside this panel."
+    : "Try Glimpsea with a sample catalog.";
+  syncAccess();
+  await updateEtsyKeyword();
+  updateControls();
 }
 
 async function activeEtsyTab() {
@@ -184,13 +272,19 @@ async function scanCatalog(job) {
 
 function syncAccess() {
   const trial = form.elements.access.options[0];
-  trial.disabled = trial.dataset.empty === "1" || form.elements.plan.value !== "basic";
+  const plan = liveSelected() ? "basic" : form.elements.plan.value;
+  trial.disabled = trial.dataset.empty === "1" || plan !== "basic";
   if (trial.disabled) form.elements.access.selectedIndex = 1;
+  else if (form.elements.access.dataset.intent !== "paid") form.elements.access.selectedIndex = 0;
+  accessNote.hidden = Boolean(pendingJob());
+  accessNote.textContent = form.elements.access.selectedIndex === 0 ? "Uses 1 Basic trial."
+    : mode.nearTestnet ? `From ${startingPrices[plan]} NEAR on testnet. See the exact amount at checkout.`
+    : "Simulated payment. No funds move.";
 }
 
 async function refresh() {
   const { remaining } = await call("trials");
-  trials.textContent = `${remaining} Basic trials left${accountId ? " on this NEAR account" : " in this browser"}.`;
+  trials.textContent = `${remaining} Basic ${remaining === 1 ? "trial" : "trials"} left${accountId ? " on this NEAR account" : " in this browser"}.`;
   form.elements.access.options[0].dataset.empty = remaining === 0 ? "1" : "0";
   syncAccess();
   if (!mode.nearTestnet) return;
@@ -209,13 +303,18 @@ async function refresh() {
 
 async function run(job) {
   activeJob = job;
+  if (pendingJob() && mode.etsyLive && job.collection) {
+    form.elements.source.value = job.collection;
+    await updateSource();
+  }
   if (job.listings) showCaptures(job);
   else scanResults.hidden = true;
   await chrome.storage.local.set({ glimpseaJob: job.id });
   if (job.state === "awaiting-payment") {
-    status.textContent = "Payment is required before reading pages. Complete checkout, then select Resume research.";
+    status.textContent = "Pay on NEAR testnet before the scan starts. Then return here and select Resume research.";
     checkoutButton.hidden = false;
     startButton.textContent = "Resume research";
+    status.scrollIntoView({ block: "nearest" });
     return;
   }
   if (job.state === "browsing" && job.catalogPath) {
@@ -238,21 +337,27 @@ async function run(job) {
   activeJob = job;
   await chrome.storage.local.remove("glimpseaJob");
   startButton.textContent = "Start analysis";
-  if (job.state === "failed") throw new Error("Research failed. A reserved trial becomes available again.");
+  if (job.state === "failed") {
+    throw new Error(job.checkout ? "Research failed after payment. Keep your testnet receipt and order ID."
+      : "Research failed. If you used a trial, it is available again.");
+  }
   if (job.state !== "complete") throw new Error("Research did not finish.");
   await chrome.storage.local.set({ glimpseaLastReport: job.id });
   status.textContent = `Report ready. Read ${job.pages} of up to ${job.limit} ${job.collection === "etsy" ? "Etsy" : "demo"} pages.`;
+  startButton.textContent = "Start another search";
   reportButton.hidden = false;
+  status.scrollIntoView({ block: "nearest" });
 }
 
 async function withProgress(work) {
   if (working) return;
   working = true;
-  startButton.disabled = true;
+  clearKeywordError();
   logoutButton.disabled = true;
   catalogButton.disabled = true;
   checkoutButton.hidden = true;
   reportButton.hidden = true;
+  updateControls();
   try {
     await work();
     await refresh();
@@ -260,11 +365,20 @@ async function withProgress(work) {
     if (error.status === 401 && mode.nearTestnet) {
       await resetWallet(false);
     }
-    status.textContent = error.message;
+    if (error.message.startsWith("No results in the sample catalog")) {
+      keywordError.textContent = error.message;
+      keywordError.hidden = false;
+      form.elements.keyword.setAttribute("aria-invalid", "true");
+      form.elements.keyword.scrollIntoView({ block: "nearest" });
+      status.textContent = "Update the keyword and try again.";
+    } else {
+      status.textContent = error.message;
+      status.scrollIntoView({ block: "nearest" });
+    }
     await refresh().catch(() => {});
   } finally {
     working = false;
-    startButton.disabled = false;
+    updateControls();
     logoutButton.disabled = false;
     catalogButton.disabled = false;
   }
@@ -277,6 +391,8 @@ async function showWallet() {
   form.hidden = !accountId;
   form.elements.access.options[1].textContent = "Pay on NEAR testnet";
   form.elements.access.options[1].value = "testnet-payment";
+  if (accountId) await updateSource();
+  else document.querySelector("#demo-note").textContent = "Connect a testnet wallet to use trials, pay for research, and open private reports.";
 }
 
 async function resetWallet(revoke = true) {
@@ -306,7 +422,7 @@ async function finishPair(pair) {
       await chrome.storage.local.remove("glimpseaNearPair");
       await showWallet();
       await refresh();
-      status.textContent = "Ready to search the demo catalog.";
+      showReadyStatus();
       return;
     }
     await sleep(2000);
@@ -334,19 +450,50 @@ async function connectWallet(savedPair) {
 
 catalogButton.addEventListener("click", () => {
   const keyword = form.elements.keyword.value.trim();
-  const query = new URLSearchParams({ keyword: keyword || "cafe owner supplies", page: "1" });
+  const query = new URLSearchParams({ keyword: keyword || sampleKeyword, page: "1" });
   void showCatalog(`${origin}/demo-catalog?${query}`).catch((error) => { status.textContent = error.message; });
 });
+allowEtsyButton.addEventListener("click", () => {
+  void chrome.permissions.request(etsyPermission).then(async (granted) => {
+    await updateEtsyKeyword();
+    if (!granted) status.textContent = "Allow Etsy access to read the search keyword and listing cards.";
+    else showReadyStatus();
+  }).catch((error) => { status.textContent = error.message; });
+});
+openEtsyButton.addEventListener("click", () => {
+  const query = new URLSearchParams({ q: sampleKeyword });
+  void chrome.tabs.create({ url: `https://www.etsy.com/search?${query}` });
+});
+function refreshActiveSearch() {
+  void updateEtsyKeyword().catch((error) => { status.textContent = error.message; });
+}
+chrome.tabs.onActivated.addListener(refreshActiveSearch);
+chrome.tabs.onUpdated.addListener((_id, change, tab) => {
+  if (tab.active && (change.url || change.status === "complete")) refreshActiveSearch();
+});
+chrome.permissions.onRemoved.addListener(refreshActiveSearch);
 connectButton.addEventListener("click", () => void connectWallet());
 logoutButton.addEventListener("click", () => void resetWallet().catch((error) => { status.textContent = error.message; }));
 form.elements.plan.addEventListener("change", syncAccess);
+form.elements.access.addEventListener("change", () => {
+  form.elements.access.dataset.intent = form.elements.access.selectedIndex === 0 ? "trial" : "paid";
+  syncAccess();
+});
+form.elements.audience.addEventListener("input", updateScope);
+form.elements.keyword.addEventListener("input", clearKeywordError);
+form.elements.source.addEventListener("change", () => {
+  showReadyStatus();
+  void updateSource().catch((error) => { status.textContent = error.message; });
+});
 form.addEventListener("submit", (event) => {
   event.preventDefault();
+  if (working) return;
   const input = Object.fromEntries(new FormData(form));
   input.productionHours = Number(input.productionHours);
   if (!input.category) delete input.category;
-  const live = mode.etsyLive && input.source === "etsy";
-  const permission = live ? chrome.permissions.request({ origins: ["https://www.etsy.com/*"] }) : undefined;
+  const live = liveSelected();
+  const displayedKeyword = etsyTabKeyword;
+  const permission = live ? chrome.permissions.request(etsyPermission) : undefined;
   void withProgress(async () => {
     if (permission && !await permission) throw new Error("Allow Etsy access to read the active search results tab.");
     const { glimpseaJob } = await chrome.storage.local.get("glimpseaJob");
@@ -354,7 +501,12 @@ form.addEventListener("submit", (event) => {
     const collection = live ? "etsy" : "dom";
     if (collection === "etsy") {
       const { url } = await activeEtsyTab();
+      if (url.searchParams.get("q") !== displayedKeyword) {
+        await updateEtsyKeyword();
+        throw new Error("The Etsy keyword changed. Check it here before starting research.");
+      }
       input.keyword = url.searchParams.get("q");
+      input.plan = "basic";
     }
     await run(await call("start", { ...input, collection }));
   });
@@ -383,16 +535,12 @@ startButton.disabled = true;
   if (mode.etsyLive) {
     document.querySelector("#source-field").hidden = false;
     form.elements.source.value = activeTab && isCatalog(activeTab) ? "dom" : "etsy";
-    const keyword = etsySearch(activeTab?.url)?.searchParams.get("q");
-    if (keyword) form.elements.keyword.value = keyword.slice(0, 120);
-    document.querySelector("#demo-note").textContent = "Basic can read the active Etsy search tab. Open Glimpsea from the toolbar on that tab.";
   }
   if (activeTab && isCatalog(activeTab)) {
     const keyword = new URL(activeTab.url).searchParams.get("keyword");
     if (keyword) form.elements.keyword.value = keyword.slice(0, 120);
   }
   if (mode.nearTestnet) {
-    if (!mode.etsyLive) document.querySelector("#demo-note").textContent = "Search the local Etsy simulation beside Glimpsea. Paid research uses NEAR testnet.";
     token = saved.glimpseaNearToken;
     if (token) {
       try { ({ accountId } = await auth("account")); }
@@ -408,6 +556,7 @@ startButton.disabled = true;
     owner = saved.glimpseaOwner ?? crypto.randomUUID();
     await chrome.storage.local.set({ glimpseaOwner: owner });
     form.hidden = false;
+    await updateSource();
   } else {
     throw new Error("Enable the extension on the local Glimpsea server.");
   }
@@ -423,10 +572,16 @@ startButton.disabled = true;
     await chrome.storage.local.remove("glimpseaJob");
   }
   await refresh();
-  status.textContent = "Ready to search the demo catalog.";
+  showReadyStatus();
   if (saved.glimpseaLastReport) {
     activeJob = await call("status", { id: saved.glimpseaLastReport }).catch(() => undefined);
     reportButton.hidden = activeJob?.state !== "complete";
-    if (activeJob?.listings) showCaptures(activeJob);
+    if (!reportButton.hidden) {
+      startButton.textContent = "Start another search";
+      status.textContent = `Report ready for “${activeJob.keyword}”.`;
+      if (activeJob.listings) showCaptures(activeJob);
+    }
   }
-})().catch((error) => { status.textContent = error.message; }).finally(() => { startButton.disabled = false; });
+})().catch((error) => {
+  status.textContent = mode ? error.message : "Could not reach Glimpsea. Start the local server, then reopen this panel.";
+}).finally(updateControls);

@@ -6,7 +6,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Glimpsea | Etsy Product Research",
-  description: "See how a buyer agent compares Etsy product ideas and picks one to test.",
+  description: "Read Etsy search results in your browser and review the listings behind a product idea.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

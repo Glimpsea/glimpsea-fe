@@ -101,8 +101,10 @@ GLIMPSEA_EXTENSION_NEAR_TESTNET=0 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_ETSY_LIVE_B
 
 1. Open `opera://extensions` in Opera GX. Turn on **Developer mode**, select **Load unpacked**, and choose this repository's `extension` folder. If Glimpsea is already installed from that folder, select **Reload**.
 2. Open [Etsy search for cafe owner supplies](https://www.etsy.com/search?q=cafe+owner+supplies). From the Opera GX extensions menu, open **Glimpsea Research Demo** beside the search results.
-3. Choose **Etsy live search** and **Basic**. Use a Basic trial or select **Simulate payment**, then click **Start analysis**. Allow access to `www.etsy.com` when Opera prompts you.
-4. Watch the scan highlight cards and move to page 2. Click **Open private demo report** when the panel shows **Report ready**. The report shows the title, active price when available, and one Etsy URL per listing ID. For the cafe search, it also groups matching titles, summarizes prices by currency, and compares three product ideas against the seller's time limit.
+3. Choose **Etsy live search**. If prompted, select **Allow Etsy access** so the panel can show the keyword from the active tab. Etsy live uses Basic with up to two results pages. Use a Basic trial or select **Simulate payment**, then click **Start analysis**.
+4. Watch the scan highlight cards and move to page 2. Click **Open private report** when the panel shows **Report ready**. The report shows the title, active price when available, and one Etsy URL per listing ID. For the cafe search, it also groups matching titles, summarizes prices by currency, and compares three product ideas against the seller's time limit.
+
+For the paid pilot, set `GLIMPSEA_EXTENSION_NEAR_TESTNET=1` and configure the testnet receiver as shown under **Testnet wallet and checkout**. Keep `GLIMPSEA_ETSY_LIVE_BASIC=1`. Connect your testnet wallet, select **Pay on NEAR testnet**, and verify the exact quote in checkout. Return to the Etsy search tab and select **Resume research**.
 
 The recorded Opera GX run for `cafe owner supplies` read **78 listing cards across two pages** and saved **69 unique listings**. All 69 had a displayed price. Basic stopped at page 2 with a page 3 link still available. Counts and prices can vary between runs. Glimpsea reads the browser DOM without using the Etsy API and assembles this report locally.
 
@@ -126,7 +128,12 @@ The brief compared three ideas for US cafe owners with a four-hour limit for sel
 
 The brief picked the **shift checklist** for the first test. The sample contains a comparable operations checklist, and the mockup takes the least seller time of the three. A manager can try the editable US Letter mockup on the next shift without waiting for a supplier or providing a storefront photo. Show it to three US cafe owners or managers. Proceed if at least two agree to try it and their feedback identifies a concrete improvement.
 
-In a separate Opera GX run, a test account paid **0.010000925400199157 NEAR** on testnet for Basic Etsy live using `cafe owner supplies`. While the order was awaiting payment, it recorded zero pages and zero listings. After checkout verified the receipt, **Resume research** scanned pages 1 and 2, saved **115 unique listings**, and stopped without opening page 3. The signed-in owner opened the private brief. The same report URL returned HTTP 404 without a wallet session. [Basic Etsy live testnet receipt](https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn)
+### Paid Basic checkout results
+
+- **Live Etsy in Opera GX.** A test account paid **0.010000925400199157 NEAR** on testnet to research `cafe owner supplies`. The order recorded zero pages before payment verification. After **Resume research**, Basic saved **115 unique live listings from 2 pages** and stopped before page 3. [Live Etsy checkout receipt](https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn)
+- **Checkout retest with simulated pages in Chromium.** The revised panel used a new NEAR testnet transfer and verified its transaction hash before scanning. After **Resume research**, Basic saved **3 unique sample listings from 2 simulated Etsy pages**. [Simulated-pages checkout receipt](https://testnet.nearblocks.io/txns/GQyvdPtdMoVTEncaKUKHXSFB4UrrCDS27eN4Wezw97FT)
+
+In both runs, the signed-in wallet owner opened the private report. The same URLs returned HTTP 404 without a wallet session.
 
 ## Verify checkout with a test transfer
 

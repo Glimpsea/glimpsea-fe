@@ -11,22 +11,30 @@
 <body>
   <main>
     <h1>Glimpsea</h1>
-    <p id="demo-note">Search the local Etsy simulation with Glimpsea open beside it.</p>
-    <button id="open-catalog" class="secondary" type="button">Open Etsy simulation</button>
+    <p id="demo-note">Read search results and open a research report.</p>
     <p id="wallet-status"></p>
     <button id="connect-wallet" type="button" hidden>Connect NEAR testnet wallet</button>
     <button id="disconnect-wallet" class="secondary" type="button" hidden>Disconnect wallet</button>
     <form id="research" hidden>
+      <fieldset id="research-options">
       <label id="source-field" hidden>Source
         <select name="source">
           <option value="etsy">Etsy live search</option>
           <option value="dom">Local Etsy simulation</option>
         </select>
       </label>
-      <label>Keyword <input name="keyword" value="cafe owner supplies" required maxlength="120"></label>
+      <div id="etsy-search" hidden>
+        <p class="field-name">Keyword from the Etsy tab</p>
+        <p id="etsy-keyword"></p>
+        <button id="allow-etsy" class="secondary" type="button" hidden>Allow Etsy access</button>
+        <button id="open-etsy" class="secondary" type="button" hidden>Open example Etsy search</button>
+      </div>
+      <label id="catalog-keyword">Keyword <input name="keyword" value="cafe owner supplies" required maxlength="120" aria-describedby="keyword-error"></label>
+      <p id="keyword-error" role="alert" hidden></p>
+      <button id="open-catalog" class="secondary" type="button">Open sample catalog</button>
       <label>Target buyers in the US <input name="audience" value="US cafe owners" required maxlength="180"></label>
       <label>Hours to prepare the first product <input name="productionHours" type="number" value="4" min="0.5" max="80" step="0.5" required></label>
-      <label>Category
+      <label id="category-field">Category
         <select name="category">
           <option value="">Compare all three</option>
           <option value="digital">Digital</option>
@@ -34,25 +42,29 @@
           <option value="personalized">Simple personalization</option>
         </select>
       </label>
-      <label>Package
+      <p id="etsy-plan" hidden><strong>Basic</strong> · Up to 2 Etsy results pages</p>
+      <label id="plan-field">Package
         <select name="plan">
           <option value="basic">Basic · up to 2 pages</option>
           <option value="medium">Medium · up to 5 pages</option>
           <option value="deep">Deep · up to 10 pages</option>
         </select>
       </label>
-      <label>Access
+      <p id="report-scope" hidden></p>
+      <label>Use a trial or pay
         <select name="access">
           <option value="trial">Use one Basic trial</option>
           <option value="simulated-payment">Simulate payment</option>
         </select>
       </label>
       <p id="trials"></p>
-      <button type="submit">Start analysis</button>
+      </fieldset>
+      <p id="access-note" hidden></p>
+      <button id="start-analysis" type="submit">Start analysis</button>
     </form>
-    <p role="status" id="status">Connect to the local Glimpsea demo to start.</p>
+    <p role="status" id="status">Connecting to Glimpsea…</p>
     <button id="checkout" type="button" hidden>Open testnet checkout</button>
-    <button id="open-report" type="button" hidden>Open private demo report</button>
+    <button id="open-report" type="button" hidden>Open private report</button>
     <section id="scan-results" aria-labelledby="scan-heading" hidden>
       <h2 id="scan-heading">Listings read</h2>
       <p id="scan-count" role="status"></p>

@@ -30,6 +30,7 @@ function nearAmount(amount: string) {
 
 type CheckoutJob = {
   state: string;
+  collection?: string;
   checkout?: { receiver: string; amount: string; txHash: string | null };
 };
 
@@ -43,6 +44,7 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
   const [account, setAccount] = useState("");
   const [quote, setQuote] = useState<CheckoutJob["checkout"]>();
   const [txHash, setTxHash] = useState("");
+  const [etsy, setEtsy] = useState(false);
   const storageKey = `glimpsea-testnet-tx:${checkout}`;
 
   useEffect(() => {
@@ -55,6 +57,7 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
       if (!current) return;
       if (!job.checkout) throw new Error("This order does not have a testnet checkout.");
       setAccount(accountId);
+      setEtsy(job.collection === "etsy");
       setQuote(job.checkout);
       setTxHash(job.checkout.txHash ?? sessionStorage.getItem(storageKey) ?? "");
       setDone(Boolean(job.checkout.txHash));
@@ -101,7 +104,7 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
       setTxHash(hash);
     }
     await api(research, { action: "pay", id: checkout, txHash: hash.trim() });
-    setMessage("Testnet payment verified. Return to the side panel to continue research.");
+    setMessage("");
     setDone(true);
   }
 
@@ -136,7 +139,12 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
           {busy ? "Waiting for wallet or verification…" : checkout ? txHash ? "Verify payment" : "Pay with testnet NEAR" : "Connect wallet"}
         </button>
       )}
-      {done && checkout && txHash && <a className="underline" href={`https://testnet.nearblocks.io/txns/${encodeURIComponent(txHash)}`}>View testnet receipt</a>}
+      {done && checkout && txHash && (
+        <>
+          <p role="status">Payment verified. {etsy ? "Return to your Etsy search tab" : "Return to the Glimpsea side panel"} and select <strong>Resume research</strong>.</p>
+          <a className="underline" href={`https://testnet.nearblocks.io/txns/${encodeURIComponent(txHash)}`}>View testnet receipt</a>
+        </>
+      )}
       <p role="status">{message}</p>
     </div>
   );

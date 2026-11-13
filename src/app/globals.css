@@ -108,45 +108,32 @@ a.wordmark {
 .intro-link:hover { text-decoration: underline; }
 .intro-link:hover span { transform: translateY(3px); }
 
-.gallery {
-  max-width: 100rem;
-  margin-inline: auto;
-}
-
-.gallery-strip {
+.extension-demo {
   display: grid;
-  grid-template-columns: 1fr 1.75fr 1fr;
-  align-items: start;
-  gap: clamp(.45rem, 2vw, 1.85rem);
+  grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr);
+  align-items: center;
+  gap: clamp(1.5rem, 4vw, 4.25rem);
+  border-top: 1px solid currentColor;
+  padding-block: clamp(2rem, 5vw, 4.5rem);
+  scroll-margin-top: .5rem;
 }
 
-.gallery-panel {
-  position: relative;
-  aspect-ratio: 1.04;
-  overflow: hidden;
-  background: color-mix(in srgb, var(--color-ink) 10%, var(--color-pale-pine));
+.extension-summary h2 {
+  font: italic 400 clamp(2.1rem, 3.7vw, 4rem)/1.02 var(--font-editorial);
+  letter-spacing: -.06em;
 }
 
-.gallery-panel:nth-child(2) {
-  margin-top: clamp(.7rem, 4vw, 3.6rem);
-  aspect-ratio: 1.68;
-}
-
-.gallery-panel:nth-child(3) {
-  margin-top: clamp(.35rem, 1.55vw, 1.4rem);
-  aspect-ratio: .95;
-}
-
-.gallery-panel img { object-fit: cover; }
-
-.gallery figcaption {
-  margin: 1rem clamp(1.25rem, 4vw, 4rem) clamp(2.5rem, 6vw, 5.2rem);
-  text-align: right;
+.extension-summary p, .extension-summary ul { margin-top: 1rem; }
+.extension-summary a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; text-underline-offset: .2em; }
+.extension-preview img { width: 100%; height: auto; border: 1px solid currentColor; }
+.extension-preview figcaption {
+  margin-top: .6rem;
   font-size: .78rem;
 }
 
 .demo-band {
   background: var(--color-deep-burgundy);
+  color: #140707;
   scroll-margin-top: .5rem;
 }
 
@@ -158,6 +145,7 @@ a.wordmark {
 }
 
 .request, .order { min-width: 0; }
+.request > p { margin-top: 1rem; max-width: 48ch; }
 
 .demo h2, .brief h2 {
   font: italic 400 clamp(2.5rem, 5.5vw, 5rem)/.99 var(--font-editorial);
@@ -333,9 +321,11 @@ a.wordmark {
   .masthead a { font-size: .77rem; }
   .masthead .wordmark { font-size: 1.15rem; }
   .intro h1 { font-size: clamp(2.15rem, 10vw, 4rem); }
-  .gallery-strip { grid-template-columns: 1fr 1.6fr 1fr; }
-  .gallery-panel:nth-child(n) { aspect-ratio: .88; }
   .demo { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 760px) {
+  .extension-demo { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

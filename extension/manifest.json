@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Glimpsea Research Demo",
   "version": "0.1.0",
-  "description": "Compare Etsy product ideas using Glimpsea's synthetic demo catalog.",
+  "description": "Read Etsy search results and review the evidence for your next product idea.",
   "permissions": ["sidePanel", "storage", "scripting"],
   "host_permissions": ["http://127.0.0.1/*"],
   "optional_host_permissions": ["https://www.etsy.com/*"],

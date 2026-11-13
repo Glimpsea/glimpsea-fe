@@ -4,14 +4,21 @@ body { margin: 0; }
 main { max-width: 32rem; padding: 1.4rem; margin: auto; }
 h1 { margin: 0; font: italic 2.4rem/1 Georgia, serif; }
 form { display: grid; gap: .8rem; border-top: 3px solid #f31328; padding-top: 1rem; }
+fieldset { display: grid; min-width: 0; gap: .7rem; margin: 0; padding: 0; border: 0; }
 label { display: grid; gap: .3rem; font-weight: 600; }
 input, select, button { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid currentColor; border-radius: .35rem; font: inherit; padding: .5rem .7rem; color: inherit; background: #fff9eb; }
 button { background: #FEC40b; font-weight: 650; cursor: pointer; }
+button + button { margin-top: .45rem; }
 button:disabled { opacity: .6; cursor: not-allowed; }
 :focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
-#trials { margin: 0; }
-#open-catalog { margin-bottom: .85rem; }
-#status { overflow-wrap: anywhere; }
+#trials, #etsy-plan, #report-scope, #access-note, #keyword-error { margin: 0; }
+#etsy-search p { margin: 0 0 .2rem; }
+.field-name { font-weight: 650; }
+#etsy-keyword { overflow-wrap: anywhere; }
+#etsy-search button { margin-top: .4rem; }
+#report-scope, #access-note, #trials { font-size: .88rem; }
+#keyword-error { color: #8d1823; }
+#status { overflow-wrap: anywhere; scroll-margin-top: .85rem; }
 #wallet-status { overflow-wrap: anywhere; }
 #disconnect-wallet { margin-bottom: .75rem; }
 #history { display: grid; gap: .5rem; margin-top: 1rem; }

@@ -1,11 +1,8 @@
 import DemoClient from "./demo-client";
 import Image from "next/image";
 
-const gallery = [
-  { file: "coffee-botanical", alt: "A framed coffee plant illustration beside a cafe window" },
-  { file: "counter-print", alt: "A red botanical print above a cafe counter" },
-  { file: "seating-print", alt: "A golden geometric print above a cafe table" },
-];
+const liveReceipt = "https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn";
+const extensionGuide = "https://github.com/Glimpsea/glimpsea-fe#test-basic-on-etsy-live-in-opera-gx";
 
 export default function Home() {
   return (
@@ -13,30 +10,34 @@ export default function Home() {
       <header className="masthead wrap">
         <a className="wordmark" href="#top">Glimpsea</a>
         <nav aria-label="Page">
-          <a href="#demo">Sample order</a>
-          <a href="#brief">Research brief</a>
+          <a href="#extension-demo">Extension demo</a>
+          <a href="#demo">Buyer agent demo</a>
         </nav>
       </header>
 
       <main id="top">
         <section className="intro wrap" aria-labelledby="title">
           <h1 id="title">What should <em>you sell on Etsy?</em></h1>
-          <p>Compare digital downloads, print-on-demand, and simple personalized products. Choose one idea to test with buyers.</p>
-          <a className="intro-link" href="#demo">Try the buyer agent demo <span aria-hidden="true">↓</span></a>
+          <p>Glimpsea reads Etsy search results in your browser. See the listings and prices behind a product idea before you spend time making it.</p>
+          <a className="run-button intro-link" href="#extension-demo">See the extension demo <span aria-hidden="true">↓</span></a>
         </section>
 
-        <figure className="gallery">
-          <div className="gallery-strip">
-            {gallery.map(({ file, alt }, index) => (
-              <div className="gallery-panel" key={file}>
-                <Image src={`/cafe-art/${file}.webp`} alt={alt} fill
-                  sizes={index === 1 ? "(max-width: 640px) 50vw, 42vw" : "(max-width: 640px) 25vw, 29vw"}
-                  fetchPriority={index === 1 ? "high" : "auto"} loading="eager" />
-              </div>
-            ))}
+        <section className="extension-demo wrap" id="extension-demo" aria-labelledby="extension-title">
+          <div className="extension-summary">
+            <h2 id="extension-title">A Basic search, from Etsy to report</h2>
+            <p>Open Etsy search results beside Glimpsea. The panel shows the keyword from your tab. Use a Basic trial or pay on NEAR testnet to read up to two pages and open your private report.</p>
+            <p>In our paid run, Glimpsea waited for payment verification, then read 115 unique listings across two pages for <strong>cafe owner supplies</strong>.</p>
+            <ul>
+              <li><a href={liveReceipt}>View the NEAR testnet receipt</a></li>
+              <li><a href={extensionGuide}>Set up the extension in Opera GX</a></li>
+            </ul>
           </div>
-          <figcaption>Illustrative wall art for the sample cafe market</figcaption>
-        </figure>
+          <figure className="extension-preview">
+            <Image src="/extension-demo.webp" alt="Glimpsea panel beside search results, showing two pages read and the private report button" width={1280} height={800}
+              sizes="(max-width: 760px) 92vw, 58vw" fetchPriority="high" loading="eager" />
+            <figcaption>Extension walkthrough using a sample catalog.</figcaption>
+          </figure>
+        </section>
 
         <DemoClient />
       </main>
@@ -44,7 +45,7 @@ export default function Home() {
       <footer className="footer">
         <div className="wrap footer-inner">
           <a className="wordmark" href="#top">Glimpsea</a>
-          <span>Local demo with simulated payments</span>
+          <span>Etsy research extension · NEAR testnet</span>
         </div>
       </footer>
     </>

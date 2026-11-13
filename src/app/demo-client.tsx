@@ -50,13 +50,13 @@ export default function DemoClient() {
 
       if (result.status.state !== "TASK_STATE_COMPLETED") {
         const message = result.status.message?.parts.map((part) => part.text).filter(Boolean).join(" ");
-        setError(message || "The order ended before Glimpsea delivered a brief. Run the demo again to retry.");
+        setError(message || "The order ended before Glimpsea delivered a brief. Run the simulation again.");
       } else if (!briefFromTask(result)) {
-        setError("The order finished without a brief. Run the demo again to retry.");
+        setError("The order finished without a brief. Run the simulation again.");
       }
     } catch (cause) {
       const message = cause instanceof Error ? cause.message : "The buyer agent could not finish the order.";
-      setError(`${message} Run the demo again to retry.`);
+      setError(`${message} Run the simulation again.`);
     } finally {
       setRunning(false);
     }
@@ -75,7 +75,8 @@ export default function DemoClient() {
       <section className="demo-band" id="demo" aria-labelledby="demo-title">
         <div className="demo wrap">
         <div className="request">
-          <h2 id="demo-title">Sample order</h2>
+          <h2 id="demo-title">Buyer agent demo</h2>
+          <p>Watch a buyer agent request a quote and receive a sample research brief. Payment is simulated.</p>
           <dl className="request-details">
             <div><dt>Category</dt><dd>Open to all three</dd></div>
             <div><dt>Buyers</dt><dd>{audience}</dd></div>
@@ -83,7 +84,7 @@ export default function DemoClient() {
             <div><dt>Seller work</dt><dd>{sampleOrder.productionHours} hours max</dd></div>
           </dl>
           <button className="run-button" type="button" disabled={running} onClick={start}>
-            {running ? "Buyer agent is running" : task || error ? "Run buyer agent again" : "Run buyer agent"}
+            {running ? "Buyer agent is running" : task || error ? "Run the simulation again" : "Run a simulated agent order"}
           </button>
         </div>
 
@@ -138,7 +139,7 @@ export default function DemoClient() {
           </>
         ) : (
           <p className="brief-status">
-            {running ? "The brief appears here after the buyer agent receives it." : "Run the buyer agent to get a brief for this sample order."}
+            {running ? "The brief appears here after the buyer agent receives it." : "Run the simulated order to see the sample brief."}
           </p>
         )}
         {task && <p className="task-id">Order ID <code>{task.id}</code></p>}
