@@ -2,7 +2,7 @@ import DemoClient from "./demo-client";
 import Image from "next/image";
 import { HeaderLogo } from "./header-logo";
 
-const chromeBeta = "https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome.zip";
+const extensionDownload = "https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome.zip";
 const liveReceipt = "https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn";
 const extensionGuide = "https://github.com/Glimpsea/glimpsea-fe#test-basic-on-etsy-live-in-opera-gx";
 
@@ -22,7 +22,7 @@ export default function Home() {
           <h1 id="title">What should <em>you sell on Etsy?</em></h1>
           <p>Compare product ideas for your Etsy shop. See the listings and prices behind each idea before you spend time making it.</p>
           <div className="intro-actions">
-            <a className="run-button intro-link" href={chromeBeta}>Download Chrome beta</a>
+            <a className="run-button intro-link" href={extensionDownload}>Download Glimpsea extension</a>
             <a className="intro-link" href="#install-extension">How to install <span aria-hidden="true">↓</span></a>
           </div>
         </section>
@@ -34,7 +34,7 @@ export default function Home() {
             <p>In our paid run, Glimpsea waited for payment verification, then read 115 unique listings across two pages for <strong>cafe owner supplies</strong>.</p>
             <ul>
               <li><a href={liveReceipt}>View the NEAR testnet receipt</a></li>
-              <li><a href={extensionGuide}>Set up the extension in Opera GX</a></li>
+              <li><a href={extensionGuide}>Set up the Etsy live pilot in Opera GX</a></li>
             </ul>
           </div>
           <figure className="extension-preview">
@@ -46,14 +46,14 @@ export default function Home() {
 
         <section className="chrome-install wrap" id="install-extension" aria-labelledby="install-title">
           <div>
-            <h2 id="install-title">Install the Chrome beta</h2>
-            <p>The beta uses a sample catalog. Connect a NEAR testnet wallet to run a Basic search and open your private report.</p>
+            <h2 id="install-title">Install the Glimpsea extension</h2>
+            <p>Use Chrome, Opera GX, or Brave on desktop. Connect a NEAR testnet wallet to run a Basic search in the sample catalog and open your private report.</p>
           </div>
           <ol>
-            <li><a href={chromeBeta}>Download the ZIP</a> and extract it.</li>
-            <li>Open <code>chrome://extensions</code> in desktop Chrome and turn on <strong>Developer mode</strong>.</li>
+            <li><a href={extensionDownload}>Download the ZIP</a> and extract it.</li>
+            <li>Open <code>chrome://extensions</code> in Chrome, <code>opera://extensions</code> in Opera GX, or <code>brave://extensions</code> in Brave. Turn on <strong>Developer mode</strong>.</li>
             <li>Click <strong>Load unpacked</strong> and select the extracted <code>glimpsea</code> folder.</li>
-            <li>Open <strong>Glimpsea Research</strong> from Chrome’s extensions menu.</li>
+            <li>Open <strong>Glimpsea Research</strong> from your browser’s extensions menu.</li>
           </ol>
         </section>
 

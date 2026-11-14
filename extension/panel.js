@@ -1,5 +1,9 @@
 /* global readEtsySearch */
-const origin = "http://127.0.0.1:3045";
+/* global GLIMPSEA_ORIGIN */
+const origin = typeof GLIMPSEA_ORIGIN === "string" ? GLIMPSEA_ORIGIN : "http://127.0.0.1:3045";
+const backend = new URL(origin);
+const catalogMatch = `${backend.protocol}//${backend.hostname}/demo-catalog*`;
+const reloadButton = document.querySelector("#reload-panel");
 const catalogButton = document.querySelector("#open-catalog");
 const form = document.querySelector("#research");
 const options = document.querySelector("#research-options");
@@ -17,7 +21,9 @@ const logoutButton = document.querySelector("#disconnect-wallet");
 const status = document.querySelector("#status");
 const trials = document.querySelector("#trials");
 const walletStatus = document.querySelector("#wallet-status");
+const wallet = document.querySelector("#wallet");
 const history = document.querySelector("#history");
+const historySection = document.querySelector("#history-section");
 const scanResults = document.querySelector("#scan-results");
 const scanCount = document.querySelector("#scan-count");
 const scanProgress = document.querySelector("#scan-progress");
@@ -55,7 +61,7 @@ async function request(path, data) {
   });
   const result = await response.json().catch(() => null);
   if (!response.ok || !result) {
-    const error = new Error(result?.error ?? "Start the local Glimpsea server and try again.");
+    const error = new Error(result?.error ?? "Glimpsea could not complete this request. Try again.");
     error.status = response.status;
     throw error;
   }
@@ -81,6 +87,7 @@ function pendingJob() {
 }
 
 function updateControls() {
+  reloadButton.disabled = working || openingOpportunity;
   options.disabled = working || openingOpportunity || Boolean(pendingJob());
   startButton.disabled = working || openingOpportunity || (liveSelected() && !pendingJob() && !etsyTabKeyword);
   opportunityFields.disabled = working || openingOpportunity;
@@ -103,8 +110,8 @@ function updateScope() {
   const cafe = /\b(?:caf[eé]|coffee shop|barista)\b/i;
   reportScope.hidden = !keyword;
   reportScope.textContent = cafe.test(keyword) && cafe.test(form.elements.audience.value)
-    ? "Report: listings, displayed prices, and three product ideas for cafe owners."
-    : "Report: listings and displayed prices. Product ideas are available for cafe searches with a cafe audience.";
+    ? "Your report includes captured listings, prices, and cafe ideas."
+    : "Your report includes captured listings and displayed prices.";
 }
 
 async function updateEtsyKeyword() {
@@ -131,9 +138,7 @@ async function updateEtsyKeyword() {
 }
 
 function showReadyStatus() {
-  status.textContent = liveSelected()
-    ? "Etsy research reads up to two results pages after you start a trial or verify payment."
-    : "Ready to search the sample catalog.";
+  status.textContent = "";
 }
 
 function clearKeywordError() {
@@ -244,7 +249,7 @@ function isCatalog(tab) {
 }
 
 async function showCatalog(url) {
-  const tabs = await chrome.tabs.query({ currentWindow: true, url: "http://127.0.0.1/demo-catalog*" });
+  const tabs = await chrome.tabs.query({ currentWindow: true, url: catalogMatch });
   const tab = tabs.find((candidate) => candidate.active && isCatalog(candidate)) ?? tabs.find(isCatalog);
   if (!tab) return chrome.tabs.create({ url, active: true });
   return chrome.tabs.update(tab.id, { active: true, ...(tab.url !== url && { url }) });
@@ -264,6 +269,7 @@ function showCaptures(job) {
     link.rel = "noreferrer";
     link.textContent = listing.title;
     const price = document.createElement("span");
+    price.className = "listing-price";
     price.textContent = listing.price ?? "No price shown";
     item.append(link, price);
     return item;
@@ -314,10 +320,18 @@ async function refresh() {
     if (job.state === "failed") continue;
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "secondary";
-    button.textContent = job.access === "snapshot" ? `Open ${job.keyword}` : `${job.keyword} · ${job.state.replaceAll("-", " ")}`;
+    button.className = "secondary history-item";
+    const title = document.createElement("span");
+    title.textContent = job.access === "snapshot" ? `Open ${job.keyword}` : job.keyword;
+    button.append(title);
+    if (job.access !== "snapshot") {
+      const state = document.createElement("span");
+      state.className = "history-state";
+      state.textContent = job.state === "complete" ? "Report ready" : job.state.replaceAll("-", " ");
+      button.append(state);
+    }
     button.addEventListener("click", () => {
-    if (job.access === "snapshot" || job.access === "opportunity") {
+      if (job.access === "snapshot" || job.access === "opportunity") {
         void withOpportunityProgress(async () => openPrivateReport(await call("status", { id: job.id })));
       } else {
         void withProgress(async () => run(await call("status", { id: job.id })));
@@ -325,6 +339,7 @@ async function refresh() {
     });
     history.append(button);
   }
+  historySection.hidden = !history.childElementCount;
 }
 
 async function run(job) {
@@ -409,7 +424,8 @@ async function withProgress(work) {
 }
 
 async function showWallet() {
-  walletStatus.textContent = accountId || "Connect a NEAR testnet wallet to use trials and open reports.";
+  wallet.hidden = false;
+  walletStatus.textContent = accountId || "Use a NEAR testnet wallet to run searches and open private reports.";
   connectButton.hidden = Boolean(accountId);
   logoutButton.hidden = !accountId;
   form.hidden = !accountId;
@@ -417,7 +433,9 @@ async function showWallet() {
   form.elements.access.options[1].textContent = "Pay on NEAR testnet";
   form.elements.access.options[1].value = "testnet-payment";
   if (accountId) await updateSource();
-  else document.querySelector("#demo-note").textContent = "Connect a testnet wallet to use trials, pay for research, and open private reports.";
+  else document.querySelector("#demo-note").textContent = mode.etsyLive
+    ? "Read Etsy listings and open your private report."
+    : "Try Glimpsea with a sample catalog.";
 }
 
 async function resetWallet(revoke = true) {
@@ -434,6 +452,7 @@ async function resetWallet(revoke = true) {
   scanResults.hidden = true;
   scanListings.replaceChildren();
   history.replaceChildren();
+  historySection.hidden = true;
   opportunities.open = false;
   opportunityStatus.textContent = "";
   await showWallet();
@@ -474,6 +493,8 @@ async function connectWallet(savedPair) {
     connectButton.disabled = false;
   }
 }
+
+reloadButton.addEventListener("click", () => window.location.reload());
 
 catalogButton.addEventListener("click", () => {
   const keyword = form.elements.keyword.value.trim();
@@ -607,12 +628,16 @@ reportButton.addEventListener("click", async () => {
 startButton.disabled = true;
 (async () => {
   const saved = await chrome.storage.local.get(["glimpseaOwner", "glimpseaJob", "glimpseaLastReport", "glimpseaNearToken", "glimpseaNearPair"]);
-  const configuration = await fetch(`${origin}/api/extension-demo`);
+  const configuration = await fetch(`${origin}/api/extension-demo`, { cache: "no-store" });
+  if (!configuration.ok) throw new Error("Glimpsea configuration is unavailable.");
   mode = await configuration.json();
   const [activeTab] = await chrome.tabs.query({ currentWindow: true, active: true });
   if (mode.etsyLive) {
     document.querySelector("#source-field").hidden = false;
     form.elements.source.value = activeTab && isCatalog(activeTab) ? "dom" : "etsy";
+  } else {
+    form.elements.source.value = "dom";
+    opportunityForm.querySelector('option[value="custom"]').hidden = true;
   }
   if (!liveSelected()) form.elements.audience.value = "US cafe owners";
   if (activeTab && isCatalog(activeTab)) {
@@ -628,7 +653,7 @@ startButton.disabled = true;
     await showWallet();
     if (!accountId) {
       if (saved.glimpseaNearPair) await connectWallet(saved.glimpseaNearPair);
-      else status.textContent = "Sign in to start research.";
+      else status.textContent = "";
       return;
     }
   } else if (mode.simulation) {
@@ -638,7 +663,7 @@ startButton.disabled = true;
     opportunities.hidden = false;
     await updateSource();
   } else {
-    throw new Error("Enable the extension on the local Glimpsea server.");
+    throw new Error("This Glimpsea server is not accepting research requests.");
   }
   if (saved.glimpseaJob) {
     const job = await call("status", { id: saved.glimpseaJob }).catch((error) => {
@@ -663,5 +688,5 @@ startButton.disabled = true;
     }
   }
 })().catch((error) => {
-  status.textContent = mode ? error.message : "Could not reach Glimpsea. Start the local server, then reopen this panel.";
+  status.textContent = mode ? error.message : "Could not reach Glimpsea. Check your connection and select Reload.";
 }).finally(updateControls);

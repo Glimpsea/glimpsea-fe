@@ -4,14 +4,14 @@ Glimpsea is a browser extension that helps Etsy sellers decide what to make. Its
 
 The demo compares a digital download, a print-on-demand product, and a personalized product for cafe owners in the US. The seller has four hours to prepare a first product. The brief compares the three ideas and picks one to test.
 
-## Install the Chrome beta
+## Install the Glimpsea extension
 
-1. [Download the Chrome beta ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome.zip) and extract it.
-2. Open `chrome://extensions` in desktop Chrome and turn on **Developer mode**.
+1. [Download the Glimpsea extension ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome.zip) and extract it.
+2. On desktop, open `chrome://extensions` in Chrome, `opera://extensions` in Opera GX, or `brave://extensions` in Brave. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the extracted `glimpsea` folder.
-4. Open **Glimpsea Research** from Chrome’s extensions menu.
+4. Open **Glimpsea Research** from your browser’s extensions menu.
 
-The beta connects to Glimpsea on Dalang and uses a sample catalog. Connect a NEAR testnet wallet to use the two Basic trials, pay for more research, and open private reports.
+The extension connects to Glimpsea on Dalang and uses a sample catalog. Connect a NEAR testnet wallet to use the two Basic trials, pay for more research, and open private reports. Select **Reload** in the panel to refresh it without signing out.
 
 ## Run the extension locally
 

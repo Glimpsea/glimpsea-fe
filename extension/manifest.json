@@ -1,8 +1,14 @@
 {
   "manifest_version": 3,
   "name": "Glimpsea Research Demo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read Etsy search results and review the evidence for your next product idea.",
+  "icons": {
+    "16": "icons/glimpsea-16.png",
+    "32": "icons/glimpsea-32.png",
+    "48": "icons/glimpsea-48.png",
+    "128": "icons/glimpsea-128.png"
+  },
   "permissions": ["sidePanel", "storage", "scripting"],
   "host_permissions": ["http://127.0.0.1/*"],
   "optional_host_permissions": ["https://www.etsy.com/*"],
@@ -13,5 +19,11 @@
   }],
   "side_panel": { "default_path": "panel.html" },
   "background": { "service_worker": "background.js" },
-  "action": { "default_title": "Open Glimpsea" }
+  "action": {
+    "default_title": "Open Glimpsea",
+    "default_icon": {
+      "16": "icons/glimpsea-16.png",
+      "32": "icons/glimpsea-32.png"
+    }
+  }
 }

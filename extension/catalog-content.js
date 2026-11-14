@@ -1,4 +1,4 @@
-const catalogOrigin = "http://127.0.0.1:3045";
+const catalogOrigin = location.origin;
 
 function parseListings(catalog) {
   const listings = new Map();
