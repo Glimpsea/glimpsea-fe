@@ -20,7 +20,7 @@ export function LandingMarket({ points }: { points: MarketPoint[] }) {
         <div className="market-explain">
           <h2 id="market-heading">See where an idea fits.</h2>
           <p>Compare searches with competing listings for five example keywords.</p>
-          <p className="market-source">Etsy Marketplace Insights · Oct 14 to Nov 12, 2026 · Log scale</p>
+          <p className="market-source">Saved pilot snapshot · Etsy Marketplace Insights · Oct 14 to Nov 12, 2026 · Log scale</p>
         </div>
         <div className="market-figure">
           <div className="market-plot" aria-label="Select a keyword to compare searches and search results">

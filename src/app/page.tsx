@@ -33,7 +33,7 @@ export default function Home() {
           <LandingHeroPhoto />
           <section className="intro wrap" aria-labelledby="title">
             <h1 id="title">What should <em>you sell on Etsy?</em></h1>
-            <p>Compare product ideas for your Etsy shop. See the listings and prices behind each idea before you spend time making it.</p>
+            <p>Tell Glimpsea what you want to make. Compare product ideas using live Etsy listings, then download your private report as a PDF.</p>
             <div className="intro-actions">
               <a className="run-button intro-link" href={extensionDownload}>Download Glimpsea extension</a>
               <a className="intro-link" href="#install-extension">How to install <span aria-hidden="true">↓</span></a>
@@ -42,29 +42,29 @@ export default function Home() {
         </div>
 
         <section className="landing-workflow wrap" id="extension-demo" aria-labelledby="extension-title">
-          <h2 id="extension-title">From a search to your next product.</h2>
+          <h2 id="extension-title">From chat to your next product.</h2>
           <ol className="workflow-images">
             <li>
               <Image src="/landing/maker-mug.webp" alt="A maker holding a ceramic mug with a floral design at a craft table" width={660} height={880}
                 sizes="(max-width: 760px) 90vw, 22vw" />
-              <h3>Search on Etsy</h3>
-              <p>Start with a keyword or a product you could make.</p>
+              <h3>Chat with Glimpsea</h3>
+              <p>Tell the Seller Agent what you want to make, who it’s for, and how much time you have.</p>
             </li>
             <li className="workflow-screen">
-              <Image src="/extension-demo.webp" alt="Glimpsea beside a sample search, showing the listings it read and an Open your report button" width={1280} height={800}
+              <Image src="/landing/seller-agent-chat.webp" alt="Glimpsea Seller Agent chat showing a Basic quote for digital wedding planner templates for buyers in Germany" width={888} height={916}
                 sizes="(max-width: 760px) 90vw, 45vw" />
-              <h3>Read the listings</h3>
-              <p>Watch Glimpsea collect titles, prices, and links from up to two pages.</p>
-              <span className="workflow-caption">Extension walkthrough with a sample catalog</span>
+              <h3>Review the research scope</h3>
+              <p>Use a Basic trial or pay 0.01 NEAR on testnet. Glimpsea reads up to two Etsy results pages.</p>
+              <span className="workflow-caption">Seller Agent in Glimpsea v0.1.8</span>
             </li>
             <li>
               <Image src="/landing/product-prototypes.webp" alt="A maker comparing an embroidered pouch with a framed botanical print" width={660} height={880}
                 sizes="(max-width: 760px) 90vw, 22vw" />
-              <h3>Choose what to test</h3>
-              <p>Use your private report to compare ideas before making a prototype.</p>
+              <h3>Get your private report</h3>
+              <p>See what to test first and check the listings behind each idea. The report marks evidence as Limited data and includes a PDF download.</p>
             </li>
           </ol>
-          <p className="workflow-proof">In a live Etsy test, Glimpsea captured 115 unique listings across two pages.</p>
+          <p className="workflow-proof">In a Seller Agent test for wedding planner templates, Glimpsea read 108 unique Etsy listings across two pages and delivered a PDF. Germany was the target market. The count shows how many listings the scan found.</p>
         </section>
 
         <LandingMarket points={points} />

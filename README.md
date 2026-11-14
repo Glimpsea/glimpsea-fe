@@ -1,10 +1,30 @@
 # Glimpsea
 
-Glimpsea is a browser extension that helps Etsy sellers decide what to make. It reads live Etsy search results and saves the listings and displayed prices in a private report. Sellers get two Basic trials per browser profile and can use a NEAR testnet wallet to pay for more research. Glimpsea also has an A2A endpoint for agents that exchange orders and briefs.
-
-The demo compares a digital download, a print-on-demand product, and a personalized product for cafe owners in the US. The seller has four hours to prepare a first product. The brief compares the three ideas and picks one to test.
+Glimpsea helps Etsy sellers decide what to make before they spend time on a prototype. In the browser extension, a Seller Agent turns a chat into a research order, reads public Etsy search results, and delivers a private report with product ideas, listing evidence, and a PDF.
 
 The team's other NEAR HACKATHON project is [AgSurance](https://github.com/AgSurance/agsurance-fe), an independent entry.
+
+## Try it as a judge
+
+1. Follow the [install steps](#install-the-glimpsea-extension) to load v0.1.8. Open Glimpsea and see the **Research with Glimpsea** chat.
+2. Send “I want to make a digital wedding planner for engaged couples. I have three hours and a USD 5 setup budget.” When Glimpsea asks for the target country, reply “Germany.” Review the Basic scope and the **0.01 NEAR testnet** price.
+3. Select **Use Basic trial** and allow Etsy access when prompted. The extension reads up to two Etsy results pages. You can also choose [testnet checkout](#testnet-wallet-and-checkout) to verify the payment flow.
+4. When the panel shows **Report ready**, select **Open your report**. Look for the recommendation, product ideas, listing evidence, and the **Limited data** label. Select **Download PDF**.
+
+The public v0.1.8 ZIP was verified with the live Seller Agent through the quote. The separate [Germany order](#verified-chat-run--wedding-planner-templates-for-germany) demonstrates payment, live Etsy data, and PDF delivery in Opera GX.
+
+## How Glimpsea uses NEAR
+
+| Flow | What to verify |
+| --- | --- |
+| Extension checkout | NEAR Connect pairs the wallet. The [NEAR testnet checkout contract](contracts/checkout/README.md) records a 0.01 NEAR payment by order ID. Glimpsea checks the final receipt before starting paid research. |
+| Agent-to-agent commerce | The Gemini buyer reads the seller's Agent Card, checks its spending cap, and pays on NEAR testnet by direct transfer. The seller verifies the transfer and delivers a private report. See the [paid A2A walkthrough](#a2a-demo-with-on-chain-near-testnet-payments). |
+| Local simulation | The [developer demo](https://glimpsea.vercel.app/developers) uses sample data and a simulated USDC payment. |
+| Optional integrations | [NEAR AI Cloud](#use-near-ai-cloud-for-research) can generate research briefs. [Agent Market and x402](#optional-near-agent-market-and-x402-integration) are optional and the paid mainnet flow is unverified. |
+
+The **Agent Economy** track maps to the paid A2A workflow. The seller also automates quote intake, payment verification, report delivery, and one retry on the same order before sending a failure to the owner queue. In the browser flow, the buyer approves payment in their wallet.
+
+The web app uses Next.js, React, Tailwind CSS, Motion, PDFKit, Inter, and Fraunces. The extension uses Chromium extension APIs and a [React Bits component](extension/LICENSE.react-bits.md). NEAR integration uses NEAR Connect and `near-api-js`. Model calls for Seller Agent chat use Gemini. See [package.json](package.json) and the [checkout contract](contracts/checkout/Cargo.toml) for dependencies. [Official NEAR HACKATHON rules](https://nearhackathon.com/HACKATHON.md).
 
 ## Install the Glimpsea extension
 
@@ -73,9 +93,9 @@ In Opera GX, a NEAR testnet account used a Basic trial to search Etsy live for `
 
 ## Testnet wallet and checkout
 
-1. Open the side panel and enter your Etsy keyword, target buyer, and production time.
-2. Choose **Use Basic trial** to run a search without a wallet.
-3. Select **Pay on NEAR testnet**, then **Connect wallet**. Choose a wallet in the panel and sign the login message. If you already connected your wallet, select **Open checkout**. Some wallets open their own approval window.
+1. Open the side panel and ask the Seller Agent to research a product for your target buyers. Confirm the country and the time you have to make a prototype.
+2. Review the Basic scope and select **Open checkout**.
+3. Connect a NEAR testnet wallet if prompted. Choose a wallet in the panel and sign the login message. Some wallets open their own approval window.
 4. Review the quote and select **Pay with testnet NEAR**. Approve the 0.01 NEAR contract call in your wallet. The order stays locked until Glimpsea verifies the finalized payment.
 5. The side panel starts research after verification. Select **Open your report** when it is ready.
 
@@ -87,11 +107,16 @@ The checkout test completed two Basic trials, then used a transfer of `0.0100003
 
 If NearBlocks asks for a browser check, use the NEAR testnet RPC with hash `P93USZtc2iAbELrBuKoy1ddjSm9w4jnmARF6PncqehJ` and sender `glimpsea-d15aafd4df.testnet`. [NEAR transaction lookup](https://docs.near.org/api/rpc/transactions)
 
-## Run the web demo
+## Run the web demo locally
 
-Open the [developer demo](https://glimpsea.vercel.app/developers) from **For developers** on the landing page. To run it locally, start `bun run dev` and open [the local developer demo](http://127.0.0.1:3000/developers).
+Install [Node.js](https://nodejs.org/) 22.22.2 or newer and [Bun](https://bun.sh/), then run the following in the repository root.
 
-Choose **Compare all** or a product category, then select **Run the simulation**. The web demo retrieves a sample brief and shows a simulated 2.50 USDC quote and payment. It runs without a wallet, database, or NEAR AI Cloud credentials.
+```sh
+bun install --frozen-lockfile
+GLIMPSEA_A2A_RESEARCH_MODE=fixture bun run dev
+```
+
+Open the [local developer demo](http://127.0.0.1:3000/developers), select a category, and run the simulation to see a sample research brief. In another terminal, run `bun run verify:demo` to check the fixture order and delivery. The fixture uses no wallet or API key. On the [hosted developer demo](https://glimpsea.vercel.app/developers), select **Run the simulation** to see a sample brief and a simulated 2.50 USDC payment.
 
 To exercise the A2A quote, authorization, and settlement against the local server, run `bun run demo` in a second terminal. The command prints the brief and its JSON block to standard output.
 
@@ -107,7 +132,7 @@ GLIMPSEA_SELLER_GEMINI_API_KEY=
 
 Start the seller with `bun run dev`. In a second terminal in the same project, run `bun --env-file=.env.local run demo:agents` and type a request such as:
 
-> Cari ide produk Etsy untuk pemilik kafe di AS. Saya bisa membuat prototipe dalam empat jam, punya modal produksi $20, dan mau bayar maksimal 2,50 USDC untuk risetnya.
+> Find Etsy product ideas for US café owners. I have four hours to make a prototype, a USD 20 setup budget, and can pay up to 2.50 USDC for research.
 
 Gemini on the buyer side turns the request into an order and asks for missing details. The buyer reads Glimpsea's Agent Card, takes the A2A URL from the card, and submits the order. The buyer caps the fee at the lower of the requested amount and `GLIMPSEA_BUYER_MAX_USDC` (default 2.50). The buyer prints the quote and A2A activity in the terminal. The seller uses its own model call to generate the brief. The model calls and HTTP messages are real. The USDC payment is simulated, and the brief uses curated references.
 

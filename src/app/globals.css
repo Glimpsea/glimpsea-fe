@@ -175,10 +175,8 @@ a.wordmark {
 }
 
 .workflow-images .workflow-screen img {
-  aspect-ratio: 8 / 5;
-  object-fit: contain;
+  aspect-ratio: auto;
   border: 1px solid color-mix(in srgb, var(--color-ink) 30%, transparent);
-  background: #fff9eb;
 }
 
 .workflow-images h3 { margin-top: .85rem; font-weight: 650; font-size: 1.08rem; }

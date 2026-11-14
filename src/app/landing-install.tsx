@@ -15,7 +15,7 @@ export function LandingInstall({ downloadUrl }: { downloadUrl: string }) {
     <section className="landing-install wrap" id="install-extension" aria-labelledby="install-title">
       <div className="install-summary">
         <h2 id="install-title">Get Glimpsea</h2>
-        <p className="install-price"><strong>2 free searches</strong><span>Then 0.01 NEAR per Basic search on testnet.</span></p>
+        <p className="install-price"><strong>2 free Basic searches per browser profile</strong><span>Then 0.01 NEAR per Basic search on testnet.</span></p>
         <a className="run-button install-download" href={downloadUrl}>Download the extension</a>
       </div>
       <div className="install-guide">
@@ -28,7 +28,7 @@ export function LandingInstall({ downloadUrl }: { downloadUrl: string }) {
           <li>Download and extract the ZIP.</li>
           <li>Open <code>{browsers[browser]}</code> and turn on <strong>Developer mode</strong>.</li>
           <li>Choose <strong>Load unpacked</strong> and select the extracted <code>glimpsea</code> folder.</li>
-          <li>Open Etsy, then open Glimpsea from your extensions menu.</li>
+          <li>Open Glimpsea from your extensions menu and start a chat.</li>
         </ol>
         <details>
           <summary>What can Glimpsea read?</summary>
