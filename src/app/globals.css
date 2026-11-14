@@ -62,6 +62,11 @@ a.wordmark {
   letter-spacing: -.07em;
 }
 
+.header-logo img {
+  width: clamp(4.5rem, 8vw, 5.6875rem);
+  height: auto;
+}
+
 .masthead a:hover, .footer a:hover { text-decoration: underline; }
 
 .intro {
@@ -319,7 +324,6 @@ a.wordmark {
 @media (max-width: 640px) {
   .masthead, .footer-inner { min-height: 4rem; }
   .masthead a { font-size: .77rem; }
-  .masthead .wordmark { font-size: 1.15rem; }
   .intro h1 { font-size: clamp(2.15rem, 10vw, 4rem); }
   .demo { grid-template-columns: minmax(0, 1fr); }
 }

@@ -7,6 +7,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Glimpsea | Etsy Product Research",
   description: "Read Etsy search results in your browser and review the listings behind a product idea.",
+  icons: { icon: { url: "/glimpsea-logo.svg", type: "image/svg+xml", sizes: "any" } },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

@@ -1,5 +1,6 @@
 import DemoClient from "./demo-client";
 import Image from "next/image";
+import { HeaderLogo } from "./header-logo";
 
 const liveReceipt = "https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn";
 const extensionGuide = "https://github.com/Glimpsea/glimpsea-fe#test-basic-on-etsy-live-in-opera-gx";
@@ -8,7 +9,7 @@ export default function Home() {
   return (
     <>
       <header className="masthead wrap">
-        <a className="wordmark" href="#top">Glimpsea</a>
+        <HeaderLogo href="#top" />
         <nav aria-label="Page">
           <a href="#extension-demo">Extension demo</a>
           <a href="#demo">Buyer agent demo</a>
