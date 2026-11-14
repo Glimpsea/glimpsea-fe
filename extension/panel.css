@@ -229,3 +229,15 @@ button:disabled { cursor: not-allowed; }
   height: min(590px, 75vh);
   border: 0;
 }
+
+.seller-chat, #chat-thread, #chat-composer, #chat-quote { display: grid; gap: .65rem; min-width: 0; }
+#chat-thread { max-height: 22rem; overflow: auto; padding: .15rem .15rem .35rem; }
+.chat-message { max-width: 94%; padding: .65rem .8rem; border-radius: .55rem; background: var(--pine); overflow-wrap: anywhere; white-space: pre-wrap; }
+.chat-message strong { display: block; color: var(--red); margin-bottom: .15rem; font-size: .8rem; }
+.chat-buyer { justify-self: end; background: var(--red); color: #fff9eb; }
+.chat-buyer strong { color: #fff9eb; }
+.chat-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+#chat-quote { border-top: 1px solid var(--soft-line); padding-top: .65rem; }
+#chat-composer textarea { font: inherit; width: 100%; resize: vertical; padding: .6rem; background: #fffdf8; border: 1px solid var(--line); border-radius: .35rem; color: var(--ink); }
+#chat-composer button { justify-self: end; }
+.seller-chat :is(button, textarea):focus-visible { outline: 2px solid var(--red); outline-offset: 2px; }

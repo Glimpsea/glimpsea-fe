@@ -3,7 +3,7 @@ import type { DemoListingCapture } from "./demo-catalog";
 import { insightLink, opportunitySnapshot, opportunityTopic } from "./opportunity-brief";
 import { asObject, BriefValidationError, planText } from "./product-research";
 import { runCloud } from "./research";
-import { perThousandSearchResults, seasonalPlan } from "./etsy-report-signals";
+import { easeScore, perThousandSearchResults, seasonalPlan } from "./etsy-report-signals";
 
 const listingPatterns = [
   ["download", "Printables and templates", /\b(?:printable|digital download|template|editable|pdf|instant download)\b/i],
@@ -120,10 +120,6 @@ export async function buildEtsyRecommendations(keyword: string, seller: ScanSell
   const cards = plan.map((candidate, index): Recommendation => {
     const group = groups.find(({ id }) => id === candidate.group);
     const counts = exactSnapshot(candidate.keyword);
-    const workPoints = candidate.hours <= seller.productionHours / 2 ? 45 : 35;
-    const budgetPoints = candidate.setupUsd === null ? 0
-      : seller.budgetUsd !== undefined || candidate.setupUsd === 0 ? 25 : 15;
-    const evidencePoints = (group ? 15 : 0) + (counts ? 15 : 0);
     return {
       ...candidate, id: String(index + 1), categoryLabel: CATEGORY_LABELS[candidate.category],
       groupLabel: group?.label ?? null,
@@ -131,7 +127,7 @@ export async function buildEtsyRecommendations(keyword: string, seller: ScanSell
       examples: group?.matches.slice(0, 3) ?? [],
       snapshot: counts ? { searches: counts.searches, results: counts.results,
         period: opportunitySnapshot.period, url: insightLink(candidate.keyword) } : null,
-      workPoints, budgetPoints, evidencePoints, score: workPoints + budgetPoints + evidencePoints,
+      ...easeScore(candidate.hours, candidate.setupUsd, seller.productionHours, seller.budgetUsd, Boolean(group), Boolean(counts)),
       confidence: counts && group ? "Data available" : "Limited data",
     };
   });

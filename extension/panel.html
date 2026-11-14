@@ -32,6 +32,28 @@
       <a id="payment-receipt" target="_blank" rel="noreferrer" hidden>View testnet receipt</a>
       <button id="open-report" type="button" hidden>Open your report</button>
     </div>
+    <section id="seller-chat" class="panel-surface seller-chat" aria-labelledby="chat-heading" hidden>
+      <header><h2 id="chat-heading">Research with Glimpsea</h2></header>
+      <div id="chat-thread" role="log" aria-label="Research conversation" aria-live="polite">
+        <p class="chat-message">Tell me what you want to make, who it’s for, and how much time you have.</p>
+      </div>
+      <div id="chat-quote" hidden>
+        <p id="chat-scope"></p>
+        <div class="chat-actions">
+          <button id="chat-trial" type="button">Use Basic trial</button>
+          <button id="chat-pay" type="button">Open checkout</button>
+        </div>
+      </div>
+      <div class="chat-actions">
+        <button id="chat-resume" class="secondary" type="button" hidden>Resume order</button>
+        <button id="chat-reset" class="secondary" type="button">New conversation</button>
+      </div>
+      <form id="chat-composer">
+        <label for="chat-input">Your research request</label>
+        <textarea id="chat-input" rows="2" maxlength="1500" required placeholder="E.g. Digital templates for US café owners, 4 hours to prototype"></textarea>
+        <button id="chat-send" type="submit">Send</button>
+      </form>
+    </section>
     <form id="research" class="panel-surface spotlight-card" aria-labelledby="research-heading" hidden>
       <h2 id="research-heading">Research Etsy</h2>
       <fieldset id="research-options">

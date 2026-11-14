@@ -66,6 +66,7 @@ export async function runBuyer({
   const signal = callerSignal ? AbortSignal.any([callerSignal, timeout]) : timeout;
   const send = (method: string, params: object, payment?: string) => fetch(endpoint, {
     method: "POST",
+    redirect: "error",
     signal,
     headers: { "Content-Type": "application/json", ...(payment && { "X-PAYMENT": payment }) },
     body: JSON.stringify({ jsonrpc: "2.0", id: crypto.randomUUID(), method, params }),
@@ -78,9 +79,9 @@ export async function runBuyer({
       || offer.network !== "glimpsea:local" || offer.asset !== "USDC" || !/^\d{1,12}$/.test(offer.amount)) {
     throw new Error(quote.error?.message ?? "Glimpsea did not return a simulated quote.");
   }
-  if (BigInt(offer.amount) > maxAmount) throw new Error("The quote exceeds the agent's budget.");
   const amount = (Number(offer.amount) / 1_000_000).toFixed(2);
   onEvent?.({ step: "quote", detail: `${amount} USDC quoted for this simulation.` });
+  if (BigInt(offer.amount) > maxAmount) throw new Error("The quote exceeds the agent's budget.");
   const payment = btoa(JSON.stringify({ x402Version: 2, accepted: offer, payload: { mode: "simulation" } }));
   let task = await readTask(await send("SendMessage", params, payment));
   onEvent?.({ step: "authorized", detail: "The buyer agent authorized the simulated payment." });

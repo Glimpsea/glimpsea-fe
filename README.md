@@ -35,6 +35,20 @@ Install Chrome, Node.js 22.22.2 or later, and Bun.
 
 In the current source, type any keyword in **Etsy keyword** or use the keyword from your Etsy search tab. Enter a **Target buyer**, then choose **Use Basic trial** or **Pay on NEAR testnet**. Glimpsea opens the matching Etsy results when research starts.
 
+## Seller Agent chat on NEAR testnet
+
+Enable `GLIMPSEA_EXTENSION_CHAT=1` and `GLIMPSEA_EXTENSION_NEAR_TESTNET=1`, configure the Basic checkout contract or set a direct-transfer receiver with `GLIMPSEA_NEAR_TESTNET_RECEIVER`, and set `GLIMPSEA_SELLER_GEMINI_API_KEY`. The seller defaults to `gemini-3.1-flash-lite`. Reload the unpacked extension and start a chat, for example: *Research cafe owner supplies for independent US coffee shop owners. I have four hours and a $20 setup budget.*
+
+Review the Basic scope, then use an available trial or approve the payment in your testnet wallet. The panel shows scan and report progress. Open the private report to download its PDF. A failed scan or brief gets one retry on the existing order. A failure after retry appears in the owner queue. Set `GLIMPSEA_EXTENSION_OWNER_ACCOUNT` and use that account's authenticated NEAR session to call `POST /api/extension-demo` with `{"action":"owner-exceptions"}`.
+
+The local chat demo uses the sample catalog. Live Etsy evidence in chat requires `GLIMPSEA_ETSY_LIVE_BASIC=1` and `GLIMPSEA_ETSY_AI_EVIDENCE=1` when Etsy authorization covers collection and AI use.
+
+### Verified chat run · Wedding planner templates for Germany
+
+On November 15, 2026 (WITA), the Seller Agent chat in Opera GX completed Basic order `39b71c0f-f696-4a61-a188-43a42f778cee`. The chat scoped a digital wedding planner template for Germany with three prototype hours and a USD 5 setup budget. Glimpsea verified a final direct payment of `0.010000569058912145 NEAR` from `killerbie.testnet` to the configured seller wallet on NEAR testnet. The hash, signer, receiver, and exact amount matched the checkout record. [Testnet payment receipt](https://testnet.nearblocks.io/txns/71zRgkmqLkY7WG2qu9J6JXx1igG1nHkAfc92s9yun3ik)
+
+The extension saved **108 unique live Etsy listings from two search results pages** for `digital wedding planner template`. Gemini produced the report on the first attempt. The private report exported as a nine-page English PDF with **Limited data**, three digital product ideas, a recommendation to test a **Minimalist Wedding Timeline Tracker Template**, and the saved listing titles, displayed prices, links, and methodology. Germany was the requested audience market. The scan did not record the Etsy **Ship to** setting, so the listing sample does not establish Germany-specific demand. The proposed EUR 5 buyer test was a hypothesis. See the [PRD](docs/prd-etsy-research-agent.md#hasil-uji-chat-seller-agent--wedding-planner-germany) for the test scope.
+
 ## Reopen a saved Etsy report
 
 1. Open Glimpsea in the browser profile you used for the search. For a paid report, connect the same NEAR testnet wallet that paid if it is disconnected.
@@ -80,6 +94,49 @@ Open the [developer demo](https://glimpsea.vercel.app/developers) from **For dev
 Choose **Compare all** or a product category, then select **Run the simulation**. The web demo retrieves a sample brief and shows a simulated 2.50 USDC quote and payment. It runs without a wallet, database, or NEAR AI Cloud credentials.
 
 To exercise the A2A quote, authorization, and settlement against the local server, run `bun run demo` in a second terminal. The command prints the brief and its JSON block to standard output.
+
+### Run an A2A demo with a natural-language request
+
+Set these values in the gitignored `.env.local` file. The buyer and seller use separate Gemini keys.
+
+```dotenv
+GLIMPSEA_A2A_RESEARCH_MODE=gemini
+GLIMPSEA_BUYER_GEMINI_API_KEY=
+GLIMPSEA_SELLER_GEMINI_API_KEY=
+```
+
+Start the seller with `bun run dev`. In a second terminal in the same project, run `bun --env-file=.env.local run demo:agents` and type a request such as:
+
+> Cari ide produk Etsy untuk pemilik kafe di AS. Saya bisa membuat prototipe dalam empat jam, punya modal produksi $20, dan mau bayar maksimal 2,50 USDC untuk risetnya.
+
+Gemini on the buyer side turns the request into an order and asks for missing details. The buyer reads Glimpsea's Agent Card, takes the A2A URL from the card, and submits the order. The buyer caps the fee at the lower of the requested amount and `GLIMPSEA_BUYER_MAX_USDC` (default 2.50). The buyer prints the quote and A2A activity in the terminal. The seller uses its own model call to generate the brief. The model calls and HTTP messages are real. The USDC payment is simulated, and the brief uses curated references.
+
+Set `GLIMPSEA_AGENT_ORIGIN` if the seller listens on a port other than 3000. To demonstrate Gemini on the buyer and NEAR AI Cloud on the seller, set `GLIMPSEA_A2A_RESEARCH_MODE=near-ai-cloud` and configure the seller's `NEAR_AI_API_KEY`, then set `GLIMPSEA_EXPECT_SELLER=near-ai-cloud` for the buyer.
+
+### A2A demo with on-chain NEAR testnet payments
+
+The buyer and seller use separate Gemini keys. For the recorded demo, the buyer gets a quote, checks its NEAR budget, and sends faucet NEAR from the configured buyer to the configured seller. Glimpsea checks the final transfer before preparing the brief. Every agent order is paid. The report keeps the three Glimpsea layers, **Limited data**, and **Download PDF**.
+
+1. Set `GLIMPSEA_A2A_TESTNET_BUYER_ACCOUNT` and `GLIMPSEA_A2A_TESTNET_SELLER_ACCOUNT` to your named or implicit accounts. Fund both on testnet so they exist on-chain, and set `GLIMPSEA_A2A_TESTNET_BUYER_FILE` to the buyer's local JSON credential file. The seller needs no signing key. Set `GLIMPSEA_A2A_NEAR_TESTNET=1` on the server and populate both Gemini keys locally.
+2. Start `bun run dev`. For a custom port, set both `GLIMPSEA_AGENT_ORIGIN` and `GLIMPSEA_REPORT_ORIGIN` to the app origin.
+3. Run `bun --env-file=.env.local run demo:agents --testnet` for a quote. Use a research budget of at least `0.010001 NEAR testnet` to cover the quote's order-specific fraction, or quote a lower budget to show rejection.
+4. Run `bun --env-file=.env.local run demo:agents --testnet --pay-testnet` to place a paid order. Keep the local receipt path printed with the explorer link. If verification or polling stops, use `bun --env-file=.env.local run demo:agents --recover-testnet <receipt-path>` to resume using the same transfer.
+5. Open **Open the Glimpsea report**, sign in with the paying testnet wallet, and click **Download PDF**.
+
+The demo uses a direct transfer. If research fails after final payment, keep the receipt for manual resolution. The paid testnet A2A flow uses its own quote and proof fields.
+
+### Optional NEAR Agent Market and x402 integration
+
+The integration below targets NEAR mainnet USDC. Its live paid flow has yet to be verified. The recorded testnet demo uses the flow above.
+
+1. Create a self-hosted draft listing with a per-call price and an SLA in [Agent Market](https://market.near.ai/). State that Glimpsea takes a JSON research brief in the A2A text part. Use `{"country":"US","audience":"US cafe owners","productionHours":4}` as a free draft test order in the marketplace UI.
+2. In the worker's local environment, set `GLIMPSEA_MARKET_AGENT_TOKEN` to the listing's agent token and set `GLIMPSEA_SELLER_GEMINI_API_KEY`. Run `bun --env-file=.env.local run market:worker` before starting the test. The worker polls assignments and stores prepared briefs in SQLite before submitting. A retry after a submission error reuses the saved brief. `--once` runs a single polling cycle.
+3. Once the listing is live, set `GLIMPSEA_MARKET_AGENT_HANDLE` and the buyer's Gemini key. Run `bun --env-file=.env.local run demo:agents --market` for a free quote. The buyer searches the catalog, reads the listing's Agent Card, and calls its A2A endpoint.
+4. To place a paid order, set `GLIMPSEA_MARKET_BUYER_ACCOUNT` and `GLIMPSEA_MARKET_BUYER_KEY` for a dedicated funded NEAR mainnet account. Set `GLIMPSEA_MARKET_USDC_CONTRACT` and `GLIMPSEA_MARKET_TREASURY` from the marketplace's [published x402 recipients](https://market.near.ai/.well-known/x402). Run `bun --env-file=.env.local run demo:agents --market --pay-mainnet` when ready to spend real USDC. The buyer checks the quote against those recipient settings and its spending cap before signing. Check the marketplace ledger for delivery and settlement.
+
+For private x402 reports, run the Next.js app alongside the seller worker (`bun run dev` locally). Set `GLIMPSEA_REPORT_ORIGIN` to the browser-facing app origin and configure the same `GLIMPSEA_MARKET_DB_PATH` for the app and worker. The app needs `GLIMPSEA_MARKET_AGENT_HANDLE` to verify the completed task. After settlement the CLI shows **Open the Glimpsea report**. Sign in on that page with the wallet that funded the order, then select **Download PDF**. Agent orders are paid per order and never use the extension's Basic trials. The marketplace Draft test run is for development. Wallet imports and signing keys stay in local configuration.
+
+Agent Market hosts the public A2A endpoint. The Glimpsea worker submits the brief over the marketplace assignment API. The x402 flow uses USDC on NEAR mainnet, with the seller's share credited through Agent Market. [Listing and test runs](https://docs.market.near.ai/list-your-agent) · [Marketplace settlement](https://market.near.ai/skill/flows/a2a-x402.md)
 
 ## Use NEAR AI Cloud for research
 

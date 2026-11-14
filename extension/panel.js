@@ -72,6 +72,149 @@ async function request(path, data) {
 
 const auth = (action, data = {}) => request("/api/near-auth", { action, ...data });
 const call = (action, data = {}, suffix = "") => request(`/api/extension-demo${suffix}`, { action, ...data });
+const chat = document.querySelector("#seller-chat");
+const chatThread = document.querySelector("#chat-thread");
+const chatComposer = document.querySelector("#chat-composer");
+const chatInput = document.querySelector("#chat-input");
+const chatSend = document.querySelector("#chat-send");
+const chatQuote = document.querySelector("#chat-quote");
+const chatScope = document.querySelector("#chat-scope");
+const chatTrial = document.querySelector("#chat-trial");
+const chatPay = document.querySelector("#chat-pay");
+const chatResume = document.querySelector("#chat-resume");
+const chatReset = document.querySelector("#chat-reset");
+let turns = [];
+let proposal;
+let sendingChat = false;
+let remainingTrials = 0;
+let lastChatStatus = "";
+let reportedJob;
+
+function chatMessage(text, role = "seller") {
+  const message = document.createElement("p");
+  message.className = `chat-message ${role === "buyer" ? "chat-buyer" : ""}`;
+  const label = document.createElement("strong");
+  label.textContent = role === "buyer" ? "You" : "Glimpsea";
+  message.append(label, document.createTextNode(text));
+  chatThread.append(message);
+  chatThread.scrollTop = chatThread.scrollHeight;
+}
+
+function chatProgress(job, text) {
+  if (!job.chat || text === lastChatStatus) return;
+  lastChatStatus = text;
+  chatMessage(text);
+}
+
+function updateChat() {
+  chat.hidden = !mode?.chat;
+  if (!mode?.chat) return;
+  form.hidden = true;
+  const pending = Boolean(pendingJob()) || needsWalletForOrder;
+  const busy = working || sendingChat || connectingWallet;
+  chatInput.disabled = busy || pending;
+  chatSend.disabled = chatInput.disabled;
+  chatQuote.hidden = !proposal || pending;
+  chatTrial.hidden = remainingTrials === 0;
+  chatTrial.disabled = busy;
+  chatPay.disabled = busy;
+  chatResume.hidden = !pending;
+  chatResume.disabled = busy;
+  chatReset.disabled = busy || pending;
+}
+
+chatComposer.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  if (chatSend.disabled) return;
+  const text = chatInput.value.trim();
+  if (!text) return;
+  if (turns.length >= 12) {
+    chatMessage("Start a new conversation to continue.");
+    return;
+  }
+  sendingChat = true;
+  proposal = undefined;
+  updateChat();
+  chatInput.value = "";
+  chatMessage(text, "buyer");
+  try {
+    const next = [...turns, { role: "buyer", text }];
+    const result = await call("chat", { turns: next, activeKeyword: tabKeyword, sampleCatalog: !mode.chatEtsy });
+    turns = [...next, { role: "seller", text: result.reply }];
+    chatMessage(result.reply);
+    if (result.scope) {
+      proposal = { ...result.scope, requestId: crypto.randomUUID() };
+      chatScope.textContent = `Basic · “${proposal.keyword}” · up to 2 pages · ${mode.chatContractCheckout ? "" : "about "}${proposal.fee} ${proposal.currency}. ${mode.chatEtsy ? "Etsy listing scan." : "Sample catalog for this demo."}`;
+    }
+  } catch (error) {
+    chatMessage(error.message);
+    chatInput.value = text;
+  } finally {
+    sendingChat = false;
+    updateChat();
+    chatInput.focus();
+  }
+});
+
+function confirmChat(access) {
+  if (!proposal || working || sendingChat) return;
+  const scope = proposal;
+  const permission = mode.chatEtsy ? chrome.permissions.request(etsyPermission) : undefined;
+  void withProgress(async () => {
+    if (permission && !await permission) throw new Error("Allow Etsy access to scan the search results.");
+    if (access === "testnet-payment" && !accountId) {
+      await connectWallet();
+      if (!accountId) return;
+    }
+    await chrome.storage.local.set({ glimpseaJob: scope.requestId, glimpseaJobRequiresWallet: access === "testnet-payment" });
+    let job;
+    try {
+      job = await call("start", { ...scope, chat: true, access,
+        collection: mode.chatEtsy ? "etsy" : "dom",
+        ...(mode.chatContractCheckout && { paymentProtocol: "contract-v1" }) });
+    } catch (error) {
+      if (error.status && error.status < 500) await chrome.storage.local.remove(["glimpseaJob", "glimpseaJobRequiresWallet"]);
+      throw error;
+    }
+    proposal = undefined;
+    if (job.state !== "complete" && job.state !== "failed") chatProgress(job,
+      job.state === "awaiting-payment" ? "Review and approve the testnet payment in your wallet." : "Your Basic trial is reserved. I’m starting the scan.");
+    await run(job);
+    return job;
+  }).then((job) => {
+    if (job?.state === "awaiting-payment") openWalletView({ checkout: job.id });
+  });
+}
+
+chatTrial.addEventListener("click", () => confirmChat("trial"));
+chatPay.addEventListener("click", () => confirmChat("testnet-payment"));
+chatResume.addEventListener("click", () => {
+  const permission = activeJob?.collection === "etsy" ? chrome.permissions.request(etsyPermission) : undefined;
+  void withProgress(async () => {
+    if (permission && !await permission) throw new Error("Allow Etsy access to resume the scan.");
+    const { glimpseaJob, glimpseaJobRequiresWallet } = await chrome.storage.local.get(["glimpseaJob", "glimpseaJobRequiresWallet"]);
+    if (!glimpseaJob) return;
+    if (glimpseaJobRequiresWallet && !accountId) {
+      await connectWallet();
+      if (!accountId) return;
+    }
+    const job = await call("status", { id: glimpseaJob });
+    if (job.state === "awaiting-payment") {
+      activeJob = job;
+      openWalletView({ checkout: job.id });
+    } else await run(job);
+  });
+});
+chatReset.addEventListener("click", () => {
+  turns = [];
+  proposal = undefined;
+  lastChatStatus = "";
+  chatThread.replaceChildren();
+  chatMessage("Tell me what you want to make, who it’s for, and how much time you have.");
+  updateChat();
+  chatInput.focus();
+});
+
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function etsySearch(url) {
@@ -101,6 +244,7 @@ function updateControls() {
       : activeJob?.state === "complete" ? "Start another search" : "Start analysis";
   }
   startButton.classList.toggle("secondary", !checkoutButton.hidden || !reportButton.hidden);
+  updateChat();
 }
 
 async function updateEtsyKeyword() {
@@ -275,6 +419,7 @@ function syncAccess() {
 
 async function refresh() {
   const { remaining } = await call("trials");
+  remainingTrials = remaining;
   trials.textContent = `${remaining} Basic ${remaining === 1 ? "trial" : "trials"} left${accountId && !mode.guestTrials ? " on this NEAR account" : " in this browser"}.`;
   trialAccess.disabled = remaining === 0;
   syncAccess();
@@ -327,27 +472,42 @@ async function run(job) {
     status.scrollIntoView({ block: "nearest" });
     return;
   }
-  if (job.state === "browsing" && job.catalogPath) {
+  if (job.state === "browsing" && (job.catalogPath || job.collection === "etsy")) {
+    const scan = job.collection === "etsy" ? scanEtsy : scanCatalog;
+    const initial = job;
+    chatProgress(job, "Reading the search results for your order.");
     startButton.textContent = "Resume research";
-    job = await scanCatalog(job);
-  }
-  if (job.state === "browsing" && job.collection === "etsy") {
-    startButton.textContent = "Resume research";
-    job = await scanEtsy(job);
+    try {
+      job = await scan(job);
+    } catch (firstError) {
+      if (!job.chat || firstError.status === 401 || (job.collection === "etsy" && !await chrome.permissions.contains(etsyPermission))) throw firstError;
+      chatProgress(job, "The scan stopped. I’m retrying on the same order.");
+      job = await call("status", { id: initial.id });
+      if (job.state === "browsing") {
+        try { job = await scan(job); }
+        catch (retryError) {
+          if (retryError.status === 401 || (job.collection === "etsy" && !await chrome.permissions.contains(etsyPermission))) throw retryError;
+          job = await call("scan-failed", { id: initial.id });
+        }
+      }
+    }
   }
   while (job.state === "browsing") {
     status.textContent = `Reading page ${job.pages + 1} of up to ${job.limit}…`;
     job = (await call("page", { id: job.id, page: job.pages + 1 })).job;
   }
   while (job.state === "ready" || job.state === "analyzing") {
+    chatProgress(job, job.attempts > 1 ? "I’m retrying the report on the same order. There is no new charge." : "I’m preparing your research brief.");
     status.textContent = `Preparing your report from ${job.pages} ${job.collection === "etsy" ? "Etsy" : "demo"} pages…`;
     job = await call("analyze", { id: job.id });
-    if (job.state === "analyzing") await sleep(1000);
+    if (job.state === "analyzing" || job.state === "ready") await sleep(1000);
   }
   activeJob = job;
   await chrome.storage.local.remove(["glimpseaJob", "glimpseaJobRequiresWallet"]);
   startButton.textContent = "Start analysis";
   if (job.state === "failed") {
+    chatProgress(job, "Research still failed after retry. I’ve logged this order for Glimpsea support.");
+
     throw new Error(job.checkout ? "Research failed after payment. Keep your testnet receipt and order ID."
       : "Research failed. If you used a trial, it is available again.");
   }
@@ -355,7 +515,12 @@ async function run(job) {
   await chrome.storage.local.set({ glimpseaLastReport: job.id });
   status.textContent = `Report ready. Read ${job.pages} of up to ${job.limit} ${job.collection === "etsy" ? "Etsy" : "demo"} pages.`;
   startButton.textContent = "Start another search";
+  reportButton.textContent = job.chat ? "Open private report" : "Open your report";
   reportButton.hidden = false;
+  if (job.chat && reportedJob !== job.id) {
+    reportedJob = job.id;
+    chatMessage(job.summary ? `${job.summary} Evidence status: Limited data.` : "Your private report is ready.");
+  }
   status.scrollIntoView({ block: "nearest" });
 }
 
@@ -374,6 +539,7 @@ async function withProgress(work) {
       await resetWallet(false);
     }
     status.textContent = error.message;
+    if (mode?.chat) chatProgress({ chat: true }, error.message);
     status.scrollIntoView({ block: "nearest" });
     await refresh().catch(() => {});
   } finally {
@@ -393,7 +559,8 @@ async function showWallet() {
   walletStatus.textContent = accountId || "Use a NEAR testnet wallet to run searches and open private reports.";
   connectButton.hidden = Boolean(accountId) || mode.guestTrials;
   logoutButton.hidden = !accountId;
-  form.hidden = !accountId && !mode.guestTrials;
+  form.hidden = Boolean(mode.chat) || !accountId && !mode.guestTrials;
+  updateChat();
   paidLabel.textContent = "Pay on NEAR testnet";
   paidAccess.value = "testnet-payment";
   await updateEtsyKeyword();
@@ -463,6 +630,7 @@ window.addEventListener("message", (event) => {
     closeWalletView();
     startButton.textContent = "Resume research";
     status.textContent = "Payment verified. Starting research…";
+    if (mode.chat) chatProgress({ chat: true }, "Payment verified on NEAR testnet. I’m starting your research.");
     if (working) verifiedPaymentId = id;
     else void withProgress(async () => run(await call("status", { id })));
   }

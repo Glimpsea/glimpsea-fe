@@ -1,6 +1,8 @@
 import { after } from "next/server";
-import { PRODUCT_CATEGORIES, type OrderInput, type SimulatedOffer } from "@/lib/a2a";
-import { authorize, getTask, processTask, quote } from "@/lib/orders";
+import type { SimulatedOffer } from "@/lib/a2a";
+import { readResearchOrder, supportsResearchMarket } from "@/lib/research-order";
+import { ExtensionDemoError } from "@/lib/extension-errors";
+import { authorizeTestnet, quoteTestnet, authorize, getTask, processTask, quote } from "@/lib/orders";
 
 export const runtime = "nodejs";
 
@@ -37,26 +39,6 @@ async function readRequest(request: Request) {
     }
     body += decoder.decode(value, { stream: true });
   }
-}
-
-function orderInput(value: unknown): OrderInput | undefined {
-  const { country, audience, category, format, productionHours, budgetUsd, sellerNotes } = record(value);
-  const supportedCategory = PRODUCT_CATEGORIES.find((item) => item === category);
-  if (typeof country !== "string" || !/^[A-Za-z]{2}$/.test(country)
-      || typeof audience !== "string" || !audience.trim() || audience.length > 180
-      || (category !== undefined && !supportedCategory)
-      || (format !== undefined && ((format !== "printable" && format !== "physical") || category !== undefined || budgetUsd !== undefined))
-      || typeof productionHours !== "number" || !Number.isFinite(productionHours) || productionHours <= 0 || productionHours > 80
-      || (budgetUsd !== undefined && (typeof budgetUsd !== "number" || !Number.isFinite(budgetUsd) || budgetUsd < 0 || budgetUsd > 100_000))
-      || (sellerNotes !== undefined && (typeof sellerNotes !== "string" || sellerNotes.length > 1000))) return;
-  return {
-    country: country.toUpperCase(), audience: audience.trim(),
-    ...(format && { format }),
-    productionHours,
-    ...(supportedCategory && { category: supportedCategory }),
-    ...(budgetUsd !== undefined && { budgetUsd }),
-    ...(typeof sellerNotes === "string" && sellerNotes.trim() && { sellerNotes: sellerNotes.trim() }),
-  };
 }
 
 function paymentOffer(header: string): SimulatedOffer | undefined {
@@ -105,8 +87,30 @@ export async function POST(request: Request) {
   if (typeof part.text === "string" && input === undefined) {
     try { input = JSON.parse(part.text); } catch { /* The next check reports the required fields. */ }
   }
-  const order = orderInput(input);
+  const order = readResearchOrder(input);
   if (!order) return fail(id, -32602, "Send a country code, audience, and production hours. The optional category is digital, pod, or personalized.");
+
+  if (params.paymentMode === "near-testnet") {
+    if (process.env.GLIMPSEA_A2A_NEAR_TESTNET !== "1") return fail(id, -32002, "A2A testnet checkout is disabled.", 404);
+    if (order.format || !supportsResearchMarket(order.country)) return fail(id, -32602, "Choose a supported Etsy product research market.", 400);
+    if (params.payment === undefined) {
+      if (!process.env.GLIMPSEA_SELLER_GEMINI_API_KEY?.trim()) return fail(id, -32002, "The seller is unavailable.", 503);
+      const offer = quoteTestnet(message.messageId, order);
+      if (!offer) return fail(id, -32602, "This message ID belongs to another order.", 409);
+      return Response.json({ mode: "near-testnet", accepts: [offer] },
+        { status: 402, headers: { "Cache-Control": "no-store" } });
+    }
+    const proof = record(params.payment);
+    try {
+      const task = await authorizeTestnet(message.messageId, order, proof.quoteId, proof.txHash);
+      if (!task) return fail(id, -32002, "The transfer does not match this order.", 422);
+      if (task.status.state === "TASK_STATE_SUBMITTED") after(() => processTask(task.id));
+      return rpc(id, { task });
+    } catch (error) {
+      if (error instanceof ExtensionDemoError) return fail(id, -32002, error.message, error.status);
+      return fail(id, -32002, "Payment verification is temporarily unavailable. Retry with the same transfer.", 503);
+    }
+  }
 
   const payment = request.headers.get("X-PAYMENT");
   if (payment === null) {

@@ -13,6 +13,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "demo": "bun scripts/demo.ts",
+    "demo:agents": "bun scripts/agent-demo.ts",
+    "market:worker": "bun scripts/market-worker.ts",
     "verify:demo": "bun scripts/verify-demo.ts"
   },
   "dependencies": {
@@ -22,12 +24,14 @@
     "framer-motion": "14.14.0",
     "near-api-js": "7.4.0",
     "next": "16.2.12",
+    "pdfkit": "^0.20.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "22.20.1",
+    "@types/pdfkit": "^0.17.7",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.7",
     "eslint": "9.39.4",

@@ -40,7 +40,7 @@ export type DemoListingCapture = {
   category?: keyof typeof ideas;
 };
 
-export type CatalogEvidence = ReturnType<typeof summarizeDemoCatalog> & { listings?: DemoListingCapture[] };
+export type CatalogEvidence = Omit<ReturnType<typeof summarizeDemoCatalog>, "source"> & { source: "glimpsea-synthetic-catalog" | "etsy-live"; listings?: DemoListingCapture[] };
 
 export function demoCatalogPage(keyword: string, page: number) {
   const words = keyword.toLowerCase().normalize("NFKD").replace(/\p{M}/gu, "").match(/[a-z0-9]+/g) ?? [];
@@ -75,5 +75,5 @@ export function summarizeDemoCatalog(keyword: string, maxPages: number, readLimi
     }
     if (!result.hasNext) break;
   }
-  return { source: "glimpsea-synthetic-catalog", keyword, maxPages, pagesRead, counts, titles };
+  return { source: "glimpsea-synthetic-catalog" as const, keyword, maxPages, pagesRead, counts, titles };
 }

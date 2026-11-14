@@ -78,3 +78,12 @@ export function priceSegments(listings: DemoListingCapture[]) {
       median: prices.length ? formatUsd(median) : null };
   }).filter(({count}) => count > 0);
 }
+
+
+export function easeScore(hours: number, setupUsd: number | null, availableHours: number,
+  budgetUsd: number | undefined, hasComparable: boolean, hasExactSnapshot: boolean) {
+  const workPoints = hours <= availableHours / 2 ? 45 : 35;
+  const budgetPoints = setupUsd === null ? 0 : budgetUsd !== undefined || setupUsd === 0 ? 25 : 15;
+  const evidencePoints = (hasComparable ? 15 : 0) + (hasExactSnapshot ? 15 : 0);
+  return { workPoints, budgetPoints, evidencePoints, score: workPoints + budgetPoints + evidencePoints };
+}

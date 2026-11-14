@@ -30,12 +30,13 @@ export type Task = {
   artifacts?: { name: string; parts: { text: string }[] }[];
   metadata: {
     payment: {
-      mode: "simulated";
+      mode: "simulated" | "near-testnet";
+      txHash?: string;
       state: "authorized" | "settled" | "released";
       amount: string;
     };
     research?: {
-      provider: "near-ai-cloud" | "fixture";
+      provider: "near-ai-cloud" | "gemini" | "fixture";
       usage?: { inputTokens: number; outputTokens: number; model: string; costUsd?: number };
     };
   };
@@ -48,4 +49,15 @@ export type SimulatedOffer = {
   amount: string;
   quoteId: string;
   expiresAt: number;
+};
+
+export type TestnetOffer = {
+  scheme: "glimpsea-near-transfer";
+  network: "near:testnet";
+  asset: "NEAR";
+  amount: string;
+  quoteId: string;
+  expiresAt: number;
+  payer: string;
+  receiver: string;
 };

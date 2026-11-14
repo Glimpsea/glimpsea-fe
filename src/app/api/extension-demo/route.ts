@@ -1,4 +1,6 @@
-import { analyzeDemo, browseDemoPage, contractQuoteDemo, createNewOpportunityReport, createOpportunityReport, demoJob, demoOwner, demoReport, ExtensionDemoError, listDemoJobs, payDemo, researchOwner, startDemo, trialsRemaining } from "@/lib/extension-demo";
+import { chatAvailable, sellerChat } from "@/lib/extension-chat";
+import { analyzeDemo, browseDemoPage, contractQuoteDemo, createNewOpportunityReport, createOpportunityReport, demoJob, demoOwner, demoReport, ExtensionDemoError, failChatScan, ownerExceptions, listDemoJobs, payDemo, researchOwner, startDemo, trialsRemaining } from "@/lib/extension-demo";
+import { after } from "next/server";
 import { cookies } from "next/headers";
 import { nearOwner, nearSessionCookie, requestNearToken, sessionAccount } from "@/lib/near-auth";
 import { nearMode } from "@/lib/near-testnet";
@@ -9,7 +11,9 @@ export function GET(request: Request) {
   const testnet = nearMode();
   const supportsEtsy = new URL(request.url).searchParams.get("etsy") === "1";
   return Response.json({ nearTestnet: testnet, simulation: !testnet && process.env.GLIMPSEA_EXTENSION_DEMO === "1",
-    etsyLive: process.env.GLIMPSEA_ETSY_LIVE_BASIC === "1" && (!testnet || supportsEtsy), guestTrials: testnet },
+    etsyLive: process.env.GLIMPSEA_ETSY_LIVE_BASIC === "1" && (!testnet || supportsEtsy), guestTrials: testnet, chat: testnet && chatAvailable(),
+    chatContractCheckout: Boolean(process.env.GLIMPSEA_NEAR_CHECKOUT_CONTRACT && process.env.GLIMPSEA_NEAR_QUOTE_KEY_FILE),
+    chatEtsy: supportsEtsy && process.env.GLIMPSEA_ETSY_LIVE_BASIC === "1" && process.env.GLIMPSEA_ETSY_AI_EVIDENCE === "1" },
     { headers: { "Cache-Control": "no-store" } });
 }
 
@@ -31,6 +35,12 @@ export async function POST(request: Request) {
     const browserOwner = guest ?? owner;
     let result;
     switch (input.action) {
+      case "owner-exceptions":
+        if (!accountId || accountId !== process.env.GLIMPSEA_EXTENSION_OWNER_ACCOUNT) throw new ExtensionDemoError("Owner access required.", 403);
+        result = { exceptions: ownerExceptions() };
+        break;
+      case "scan-failed": result = failChatScan(researchOwner(owner, guest, input.id), input.id); break;
+      case "chat": result = await sellerChat(input); break;
       case "trials": result = { remaining: trialsRemaining(browserOwner), accountId }; break;
       case "start":
         if (input.access === "testnet-payment") {
@@ -55,8 +65,22 @@ export async function POST(request: Request) {
         result = await payDemo(owner, accountId, input.id, input.txHash);
         break;
       case "status": result = demoJob(researchOwner(owner, guest, input.id), input.id); break;
-      case "page": result = browseDemoPage(researchOwner(owner, guest, input.id), input.id, input.page, input.capture); break;
-      case "analyze": result = await analyzeDemo(researchOwner(owner, guest, input.id), input.id); break;
+      case "page": {
+        const jobOwner = researchOwner(owner, guest, input.id);
+        result = browseDemoPage(jobOwner, input.id, input.page, input.capture);
+        const job = result.job;
+        if (job.chat && job.state === "ready") after(() => analyzeDemo(jobOwner, job.id).then(() => undefined));
+        break;
+      }
+      case "analyze": {
+        const jobOwner = researchOwner(owner, guest, input.id);
+        const job = demoJob(jobOwner, input.id);
+        if (job.chat && ["ready", "analyzing"].includes(job.state)) {
+          after(() => analyzeDemo(jobOwner, job.id).then(() => undefined));
+          result = job;
+        } else result = await analyzeDemo(jobOwner, input.id);
+        break;
+      }
       case "report": result = { markdown: demoReport(researchOwner(owner, guest, input.id), input.id) }; break;
       default: throw new ExtensionDemoError("Choose a demo action.");
     }

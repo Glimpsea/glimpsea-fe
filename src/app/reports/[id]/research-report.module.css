@@ -123,3 +123,10 @@ main.frame { display: grid; gap: 1.5rem; padding-block: clamp(1.5rem, 3vw, 2.5re
   .appendix { grid-template-columns: 1fr; gap: 0; }
   .appendix > a, .appendix details:first-child summary, .appendix details:last-child summary { justify-self: start; grid-column: auto; grid-row: auto; }
 }
+
+.reportSources { display: grid; gap: .25rem; margin-top: .5rem; padding-inline-start: 1.15rem; list-style: disc; font-size: .875rem; }
+.marketFacts { display: grid; gap: .6rem; margin-top: .85rem; font-size: .875rem; }
+.marketFacts dt { font-weight: 700; }
+.marketFacts dd { color: var(--muted); }
+.marketDetails { border-top: 1px solid var(--rule); margin-top: .85rem; padding-top: .5rem; }
+.marketDetails summary { min-height: 44px; padding-block: .5rem; font-weight: 700; color: var(--accent-text); cursor: pointer; }

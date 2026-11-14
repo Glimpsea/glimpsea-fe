@@ -2,7 +2,9 @@ import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "
 import { PRODUCT_CATEGORIES } from "./a2a";
 import { catalogPath, demoCatalogPage, demoListing, summarizeDemoCatalog, type DemoListingCapture } from "./demo-catalog";
 import { db } from "./orders";
-import { research } from "./research";
+import { research, type Brief } from "./research";
+import { chatAvailable } from "./extension-chat";
+import { readResearchOrder, supportsResearchMarket } from "./research-order";
 import { renderEtsyBrief } from "./etsy-brief";
 import { buildEtsyRecommendations, type Recommendation, type ScanSeller } from "./etsy-recommendations";
 import { ExtensionDemoError } from "./extension-errors";
@@ -19,7 +21,7 @@ const testnetPrices = { basic: 10n ** 22n, medium: 3n * 10n ** 22n, deep: 6n * 1
 type Checkout = { id: string; owner: string; receiver: string; amount: string; tx_hash: string | null };
 type ContractCheckout = Checkout & { verified_at: number | null };
 type Capture = { page: number; listings: DemoListingCapture[]; hasNext: boolean; nextUrl?: string };
-type DemoOrder = ScanSeller & { collection?: "dom" | "etsy" };
+type DemoOrder = ScanSeller & { collection?: "dom" | "etsy"; chat?: true };
 type StoredOrder = DemoOrder | { collection: "opportunities"; topic: string; snapshot: string };
 type Job = {
   id: string;
@@ -53,6 +55,13 @@ function database() {
       ticket TEXT PRIMARY KEY, job_id TEXT NOT NULL, owner TEXT NOT NULL, expires_at INTEGER NOT NULL
     );
     CREATE INDEX IF NOT EXISTS extension_demo_tickets_expiry ON extension_demo_tickets(expires_at);
+    CREATE TABLE IF NOT EXISTS extension_chat_runs (
+      job_id TEXT PRIMARY KEY, attempts INTEGER NOT NULL DEFAULT 0, brief_json TEXT
+    );
+    CREATE TABLE IF NOT EXISTS extension_owner_exceptions (
+      job_id TEXT PRIMARY KEY, stage TEXT NOT NULL, attempts INTEGER NOT NULL,
+      payment_status TEXT NOT NULL, tx_hash TEXT, created_at INTEGER NOT NULL
+    );
     CREATE TABLE IF NOT EXISTS extension_demo_configuration (id INTEGER PRIMARY KEY, session_key TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS extension_testnet_checkouts (
       id TEXT PRIMARY KEY, owner TEXT NOT NULL, receiver TEXT NOT NULL, amount TEXT UNIQUE NOT NULL,
@@ -105,8 +114,21 @@ export function startDemo(owner: string, input: Record<string, unknown>, nearAcc
   if (collection !== "etsy" && demoCatalogPage(keyword, 1).listings.length === 0) {
     throw new ExtensionDemoError("No results in the sample catalog. Try cafe owner supplies.");
   }
-  const id = randomUUID();
-  const order: DemoOrder = { country: "US", audience: audience.trim(), productionHours,
+  const chat = input.chat === true;
+  const requestedId = input.requestId;
+  const chatOrder = chat ? readResearchOrder(input) : undefined;
+  if (chat && (!chatAvailable() || !nearTestnet || plan !== "basic" || typeof requestedId !== "string" ||
+      !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/.test(requestedId) || !chatOrder ||
+      !supportsResearchMarket(chatOrder.country) || chatOrder.format ||
+      (collection === "etsy" && process.env.GLIMPSEA_ETSY_AI_EVIDENCE !== "1"))) {
+    throw new ExtensionDemoError("This Seller Agent order is unavailable.");
+  }
+  const id = chat && typeof requestedId === "string" ? requestedId : randomUUID();
+  if (chat && database().prepare("SELECT 1 FROM extension_demo_jobs WHERE owner = ? AND id = ?").get(owner, id)) {
+    return demoJob(owner, id);
+  }
+  const order: DemoOrder = { country: chatOrder?.country ?? "US", audience: audience.trim(), productionHours,
+    ...(chat && { chat: true, sellerNotes: chatOrder?.sellerNotes }),
     ...(supported && { category: supported }), ...(budgetUsd !== undefined && { budgetUsd }),
     ...(typeof skills === "string" && skills.trim() && { skills: skills.trim() }), collection };
   if (nearAccount && access === "testnet-payment") {
@@ -117,6 +139,10 @@ export function startDemo(owner: string, input: Record<string, unknown>, nearAcc
     const connection = database();
     connection.exec("BEGIN IMMEDIATE");
     try {
+      if (chat && connection.prepare("SELECT 1 FROM extension_demo_jobs WHERE owner = ? AND id = ?").get(owner, id)) {
+        connection.exec("COMMIT");
+        return demoJob(owner, id);
+      }
       if (contract) {
         connection.prepare("INSERT INTO extension_contract_checkouts (id, owner, receiver, amount) VALUES (?, ?, ?, ?)")
           .run(id, owner, receiver, basicContractPrice);
@@ -143,10 +169,12 @@ export function startDemo(owner: string, input: Record<string, unknown>, nearAcc
   const result = database().prepare(`
     INSERT INTO extension_demo_jobs (id, owner, plan, access, keyword, order_json)
     SELECT ?, ?, ?, ?, ?, ?
-    WHERE ? != 'trial' OR (
+    WHERE (? != 'trial' OR (
       SELECT count(*) FROM extension_demo_jobs WHERE owner = ? AND access = 'trial' AND state != 'failed'
-    ) < 2
+    ) < 2)
+    ON CONFLICT(id) DO NOTHING
   `).run(id, owner, plan, trialAccess, keyword.trim(), JSON.stringify(order), trialAccess, owner);
+  if (!result.changes && chat && database().prepare("SELECT 1 FROM extension_demo_jobs WHERE owner = ? AND id = ?").get(owner, id)) return demoJob(owner, id);
   if (result.changes === 0) throw new ExtensionDemoError(nearTestnet
     ? "Both Basic trials are used. Pay on NEAR testnet to start another research job."
     : "Both demo trials are used. Choose simulated payment.", 402);
@@ -225,6 +253,7 @@ export function demoJob(owner: string, id: unknown) {
   return {
     id: job.id, state: job.state, pages: job.pages, limit: plans[job.plan], keyword: job.keyword, collection,
     ...(order.collection === "etsy" && { audience: order.audience, productionHours: order.productionHours }),
+    ...("chat" in order && order.chat && { chat: true, attempts: chatAttempts(job.id), summary: chatBrief(job.id)?.recommendation }),
     ...(collection === "dom" && job.state === "browsing" && { catalogPath: catalogPath(job.keyword, job.pages + 1) }),
     ...(collection === "etsy" && job.state === "browsing" && job.pages > 0 && { nextUrl: savedCapture(job, job.pages).nextUrl }),
     ...(collection && job.pages > 0 && { listings: summarizeCaptures(job).listings }),
@@ -420,6 +449,11 @@ export function browseDemoPage(owner: string, id: unknown, page: unknown, captur
 export async function analyzeDemo(owner: string, id: unknown) {
   const job = readJob(owner, id);
   if (job.state === "awaiting-payment") throw new ExtensionDemoError("Verify the testnet payment before analysis.", 402);
+  const order = JSON.parse(job.order_json) as DemoOrder;
+  if (order.chat) {
+    const first = await analyzeChat(job, order);
+    return first.state === "ready" ? analyzeChat(readJob(owner, id), order) : first;
+  }
   const now = Date.now();
   const lease = now + 90_000;
   const claim = database().prepare(`
@@ -429,7 +463,6 @@ export async function analyzeDemo(owner: string, id: unknown) {
   if (!claim.changes) return demoJob(owner, job.id);
 
   try {
-    const order = JSON.parse(job.order_json) as DemoOrder;
     if (order.collection === "etsy") await saveEtsyRecommendations(job, order);
     const markdown = order.collection === "etsy" ? etsyReport(job, order) : (await research(order, order.collection === "dom"
       ? summarizeCaptures(job) : summarizeDemoCatalog(job.keyword, plans[job.plan], job.pages))).markdown;
@@ -446,6 +479,98 @@ export async function analyzeDemo(owner: string, id: unknown) {
   return demoJob(owner, job.id);
 }
 
+export function ownerExceptions() {
+  return database().prepare("SELECT * FROM extension_owner_exceptions ORDER BY created_at DESC LIMIT 100").all();
+}
+
+export function failChatScan(owner: string, id: unknown) {
+  const job = readJob(owner, id);
+  if (!(JSON.parse(job.order_json) as DemoOrder).chat || job.state !== "browsing") return demoJob(owner, id);
+  const connection = database();
+  const checkout = demoJob(owner, id).checkout;
+  connection.exec("BEGIN IMMEDIATE");
+  try {
+    const update = connection.prepare("UPDATE extension_demo_jobs SET state = 'failed' WHERE id = ? AND state = 'browsing'").run(job.id);
+    if (update.changes) connection.prepare("INSERT OR IGNORE INTO extension_owner_exceptions VALUES (?, ?, ?, ?, ?, ?)")
+      .run(job.id, "scan", 2, checkout ? "verified" : job.access, checkout?.txHash ?? null, Date.now());
+    connection.exec("COMMIT");
+  } catch (error) {
+    connection.exec("ROLLBACK");
+    throw error;
+  }
+  return demoJob(owner, id);
+}
+
+function chatAttempts(id: string) {
+  return (database().prepare("SELECT attempts FROM extension_chat_runs WHERE job_id = ?").get(id) as { attempts: number } | undefined)?.attempts ?? 0;
+}
+
+function chatBrief(id: string) {
+  const row = database().prepare("SELECT brief_json FROM extension_chat_runs WHERE job_id = ?").get(id) as { brief_json: string | null } | undefined;
+  if (row?.brief_json) return JSON.parse(row.brief_json) as Extract<Brief, { schemaVersion: 2 }>;
+}
+
+export function extensionChatReport(owner: string, id: string) {
+  const job = readJob(owner, id);
+  const order = JSON.parse(job.order_json) as DemoOrder;
+  if (job.state !== "complete" || !order.chat) return;
+  const brief = chatBrief(id);
+  if (brief) return { order, brief };
+}
+
+async function analyzeChat(job: Job, order: DemoOrder) {
+  const connection = database();
+  const maxAttempts = 2;
+  const lease = Date.now() + 90_000;
+  const claim = connection.prepare(`
+    UPDATE extension_demo_jobs SET state = 'analyzing', lease_until = ?
+    WHERE id = ? AND (state = 'ready' OR (state = 'analyzing' AND lease_until <= ?))
+  `).run(lease, job.id, Date.now());
+  if (!claim.changes) return demoJob(job.owner, job.id);
+  const attempts = chatAttempts(job.id);
+  const checkout = demoJob(job.owner, job.id).checkout;
+  function finish(brief?: Awaited<ReturnType<typeof research>>) {
+    connection.exec("BEGIN IMMEDIATE");
+    try {
+      const update = connection.prepare(`
+        UPDATE extension_demo_jobs SET state = ?, markdown = ?, lease_until = NULL
+        WHERE id = ? AND lease_until = ?
+      `).run(brief ? "complete" : "failed", brief?.markdown ?? null, job.id, lease);
+      if (update.changes && brief) {
+        connection.prepare("UPDATE extension_chat_runs SET brief_json = ? WHERE job_id = ?").run(JSON.stringify(brief.brief), job.id);
+      } else if (update.changes) {
+        connection.prepare("INSERT OR IGNORE INTO extension_owner_exceptions VALUES (?, ?, ?, ?, ?, ?)")
+          .run(job.id, "research", chatAttempts(job.id), checkout ? "verified" : job.access, checkout?.txHash ?? null, Date.now());
+      }
+      connection.exec("COMMIT");
+    } catch (error) {
+      connection.exec("ROLLBACK");
+      throw error;
+    }
+  }
+  if (attempts >= maxAttempts) {
+    finish();
+    return demoJob(job.owner, job.id);
+  }
+  connection.prepare(`
+    INSERT INTO extension_chat_runs (job_id, attempts) VALUES (?, 1)
+    ON CONFLICT(job_id) DO UPDATE SET attempts = attempts + 1
+  `).run(job.id);
+  try {
+    const evidence = order.collection === "etsy"
+      ? { ...summarizeCaptures(job), source: "etsy-live" as const }
+      : order.collection === "dom" ? summarizeCaptures(job) : summarizeDemoCatalog(job.keyword, plans[job.plan], job.pages);
+    if (order.collection === "etsy" && process.env.GLIMPSEA_ETSY_AI_EVIDENCE !== "1") throw new Error("Etsy AI evidence is disabled.");
+    finish(await research(order, evidence, "gemini"));
+  } catch (error) {
+    console.error("Seller Agent research failed", job.id, error instanceof Error ? error.message : "Internal failure");
+    if (attempts + 1 >= maxAttempts) finish();
+    else connection.prepare("UPDATE extension_demo_jobs SET state = 'ready', lease_until = NULL WHERE id = ? AND lease_until = ?")
+      .run(job.id, lease);
+  }
+  return demoJob(job.owner, job.id);
+}
+
 function summarizeCaptures(job: Job) {
   const rows = database().prepare("SELECT capture_json FROM extension_demo_captures WHERE job_id = ? ORDER BY page")
     .all(job.id) as { capture_json: string }[];
@@ -459,7 +584,7 @@ function summarizeCaptures(job: Job) {
   const listings = Array.from(unique.values());
   const counts = { digital: 0, pod: 0, personalized: 0 };
   for (const listing of listings) if (listing.category) counts[listing.category]++;
-  return { source: "glimpsea-synthetic-catalog", keyword: job.keyword, maxPages: plans[job.plan],
+  return { source: "glimpsea-synthetic-catalog" as const, keyword: job.keyword, maxPages: plans[job.plan],
     pagesRead: rows.length, counts, titles: listings.map(({ title }) => title), listings };
 }
 

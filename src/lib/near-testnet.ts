@@ -62,3 +62,13 @@ export async function verifyTestnetTransfer(hash: unknown, payer: string, receiv
   }
   return hash;
 }
+
+export function agentTestnetAccounts() {
+  const payer = process.env.GLIMPSEA_A2A_TESTNET_BUYER_ACCOUNT?.trim() || "buyer.testnet";
+  const receiver = process.env.GLIMPSEA_A2A_TESTNET_SELLER_ACCOUNT?.trim() || "seller.testnet";
+  const isTestnetAccount = (value: string) => /^[a-f0-9]{64}$/.test(value) || (isAccountId(value) && value.endsWith(".testnet"));
+  if (!isTestnetAccount(payer) || !isTestnetAccount(receiver) || payer === receiver) {
+    throw new Error("Configure distinct NEAR testnet buyer and seller accounts.");
+  }
+  return { payer, receiver };
+}

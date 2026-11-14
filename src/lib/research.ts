@@ -1,6 +1,7 @@
-import { CATEGORY_LABELS, type OrderInput } from "./a2a";
+import { CATEGORY_LABELS, PRODUCT_CATEGORIES, type OrderInput } from "./a2a";
 import { asObject, BriefValidationError, cafeProductPlan, describeProduct, planText, PRODUCT_PROMPT, requireText, validateProductPlan, type ProductPlan } from "./product-research";
 import type { CatalogEvidence } from "./demo-catalog";
+import { defaultGeminiModel, generateGeminiJson } from "./gemini";
 
 const WALL_ART_TYPES = ["poster", "art print", "art print set"] as const;
 
@@ -32,7 +33,7 @@ type Plan = {
 };
 
 type BriefMetadata = {
-  provider: "near-ai-cloud" | "fixture";
+  provider: "near-ai-cloud" | "gemini" | "fixture";
   marketEvidence: "not-measured";
   sources: Source[];
   catalogEvidence?: CatalogEvidence;
@@ -256,18 +257,18 @@ function renderBrief(brief: Brief, order: OrderInput): string {
     ...(order.budgetUsd === undefined ? [] : [`**Setup budget:** ${order.budgetUsd} USD`]),
     brief.provider === "fixture"
       ? "**Research mode:** Demo fixture. The example is fixed and omits seller notes."
-      : "**Research mode:** NEAR AI Cloud. References were curated in advance.",
+      : `**Research mode:** ${brief.provider === "gemini" ? "Gemini" : "NEAR AI Cloud"}. References were curated in advance.`,
     "",
     "Marketplace demand has not been measured. The concepts and test criteria are hypotheses and estimates.",
     "",
   ];
   if (brief.catalogEvidence) {
-    const { keyword, maxPages, pagesRead, counts, listings } = brief.catalogEvidence;
-    lines.push("## Demo catalog coverage", "",
+    const { keyword, maxPages, pagesRead, counts, listings, source } = brief.catalogEvidence;
+    lines.push(source === "etsy-live" ? "## Etsy listing scan" : "## Demo catalog coverage", "",
       `Keyword: ${markdownText(keyword)}. Pages read: ${pagesRead} of up to ${maxPages}.`, "",
-      `Synthetic listings: ${counts.digital} digital, ${counts.pod} print-on-demand, ${counts.personalized} personalized.`, "");
+      source === "etsy-live" ? "Listing titles and displayed prices are observations from this scan." : `Synthetic listings: ${counts.digital} digital, ${counts.pod} print-on-demand, ${counts.personalized} personalized.`, "");
     if (listings?.length) {
-      lines.push("### Listings read from the demo page", "");
+      lines.push("### Listings read", "");
       for (const { title, price, url } of listings) {
         lines.push(`- [${markdownText(title)}](${url}) · ${price === null ? "No price shown" : markdownText(price)}`);
       }
@@ -414,21 +415,55 @@ export async function research(input: OrderInput, catalogEvidence?: CatalogEvide
   if (!Number.isFinite(order.productionHours) || order.productionHours <= 0) {
     throw new Error("Research requires a positive production-hour budget.");
   }
-  if (mode && mode !== "fixture" && mode !== "near-ai-cloud") {
-    throw new Error("GLIMPSEA_RESEARCH_MODE must be fixture or near-ai-cloud.");
+  if (mode && mode !== "fixture" && mode !== "near-ai-cloud" && mode !== "gemini") {
+    throw new Error("Research mode must be fixture, near-ai-cloud, or gemini.");
   }
   const fixture = mode === "fixture";
   if (fixture && ((order.format && order.format !== "printable") || order.budgetUsd !== undefined || order.productionHours !== 4 ||
       !isUnitedStates(order.country) || !/\bcaf[eé][\s-]+(?:shop[\s-]+)?owners?\b/iu.test(order.audience))) {
     throw new Error("The demo fixture requires US cafe owners with a 4-hour production budget.");
   }
-  const provider = fixture ? "fixture" : "near-ai-cloud";
+  const provider = fixture ? "fixture" : mode === "gemini" ? "gemini" : "near-ai-cloud";
   const sources = sourcesFor(order, fixture);
   const metadata: BriefMetadata = { provider, marketEvidence: "not-measured", sources, ...(catalogEvidence && { catalogEvidence }) };
+  async function analyze<T>(input: object, prompt: string, validate: (value: unknown) => T, maxTokens?: number) {
+    if (provider !== "gemini") return runCloud(input, prompt, validate, maxTokens);
+    const key = process.env.GLIMPSEA_SELLER_GEMINI_API_KEY?.trim();
+    if (!key) throw new ResearchServiceError("Set GLIMPSEA_SELLER_GEMINI_API_KEY on the seller server.");
+    try {
+      const model = process.env.GLIMPSEA_SELLER_GEMINI_MODEL?.trim() || defaultGeminiModel;
+      const schema = order.format ? undefined : {
+        type: "object",
+        required: ["concepts", "decision", "selectedConcept", "recommendation", "evidenceGap", "test", "criteria"],
+        properties: {
+          concepts: { type: "array", items: {
+            type: "object",
+            required: ["title", "category", "description", "deliverable", "productionHours", "assumptions", "estimatedSetupUsd", "costCheck", "tradeoff", "personalizationInputs"],
+            properties: {
+              title: { type: "string" }, category: { type: "string", enum: order.category ? [order.category] : PRODUCT_CATEGORIES },
+              description: { type: "string" }, deliverable: { type: "string" },
+              productionHours: { type: "number" }, assumptions: { type: "string" },
+              estimatedSetupUsd: { type: ["number", "null"] }, costCheck: { type: "string" }, tradeoff: { type: "string" },
+              personalizationInputs: { type: "array", items: { type: "string" } },
+            },
+          } },
+          decision: { type: "string", enum: ["test", "defer"] }, selectedConcept: { type: ["string", "null"] },
+          recommendation: { type: "string" }, evidenceGap: { type: "string" }, test: { type: "string" },
+          criteria: { type: "object", required: ["proceed", "revise", "stop"],
+            properties: { proceed: { type: "string" }, revise: { type: "string" }, stop: { type: "string" } } },
+        },
+      };
+      const { data, usage } = await generateGeminiJson({ key, model, input, prompt, schema, signal: AbortSignal.timeout(65_000) });
+      return { plan: validate(data), usage };
+    } catch (error) {
+      const message = error instanceof SyntaxError ? "Expected valid JSON." : error instanceof Error ? error.message : "Request failed.";
+      throw new ResearchServiceError(`Gemini seller brief failed. ${message}`);
+    }
+  }
   if (order.format) {
     const { plan, usage } = fixture
       ? { plan: validatePlan(demoPlan, order), usage: undefined }
-      : await runCloud({ order, references: sources }, SYSTEM_PROMPT, (value) => validatePlan(value, order), 1800);
+      : await analyze({ order, references: sources }, SYSTEM_PROMPT, (value) => validatePlan(value, order), 1800);
     const brief: Brief = { schemaVersion: 1, ...plan, ...metadata };
     return { brief, markdown: renderBrief(brief, order), provider, usage };
   }
@@ -446,7 +481,7 @@ export async function research(input: OrderInput, catalogEvidence?: CatalogEvide
         stop: "Pause if neither happens.",
       },
     } : cafeProductPlan, order), usage: undefined }
-    : await runCloud({ order, references: sources, catalogEvidence }, PRODUCT_PROMPT, (value) => validateProductPlan(value, order));
+    : await analyze({ order, references: sources, catalogEvidence }, PRODUCT_PROMPT, (value) => validateProductPlan(value, order));
   const brief: Brief = { schemaVersion: 2, ...plan, ...metadata };
   return { brief, markdown: renderBrief(brief, order), provider, usage };
 }
