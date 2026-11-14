@@ -4,6 +4,8 @@ Glimpsea is a browser extension that helps Etsy sellers decide what to make. Its
 
 The demo compares a digital download, a print-on-demand product, and a personalized product for cafe owners in the US. The seller has four hours to prepare a first product. The brief compares the three ideas and picks one to test.
 
+The team's other NEAR HACKATHON project is [AgSurance](https://github.com/AgSurance/agsurance-fe), an independent entry.
+
 ## Install the Glimpsea extension
 
 1. [Download the Glimpsea extension ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.2.zip) and extract it.
