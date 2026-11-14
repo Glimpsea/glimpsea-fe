@@ -10,12 +10,12 @@ The team's other NEAR HACKATHON project is [AgSurance](https://github.com/AgSura
 
 The [Glimpsea landing page](https://glimpsea.vercel.app/#install-extension) has separate install steps for Chrome, Opera GX, and Brave. Its interactive chart uses five directly checked keywords from the saved Etsy Marketplace Insights pilot described below.
 
-1. [Download the Glimpsea v0.1.7 extension ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.7/glimpsea-chrome-v0.1.7.zip) and extract it.
+1. [Download the Glimpsea v0.1.8 extension ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.8/glimpsea-chrome-v0.1.8.zip) and extract it.
 2. On desktop, open `chrome://extensions` in Chrome, `opera://extensions` in Opera GX, or `brave://extensions` in Brave. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the extracted `glimpsea` folder.
 4. Open **Glimpsea Research** from your browser’s extensions menu.
 
-Search on Etsy, then open Glimpsea beside the search results. Allow Etsy access if prompted. Use the keyword from your active tab or enter a different one in **Etsy keyword**. Add your target buyers and the hours available to make a first product. Select **Use Basic trial** and **Start analysis**. Glimpsea reads up to two pages. When it finishes, select **Open your report**. To keep your trials and reports, replace the files in your existing installation folder with the files from the new ZIP. Then select **Reload** on the existing Glimpsea entry in your browser’s extensions page. You can still open saved pilot briefs from **Research history**.
+Open Glimpsea and tell the Seller Agent what you want to make, your target buyers and country, and how much time you have. Review the proposed search, then use a Basic trial or pay with a NEAR testnet wallet. Allow Etsy access when prompted so Glimpsea can read up to two public search results pages. When the report is ready, select **Open your report** and **Download PDF**. To keep your trials and reports, replace the files in your existing installation folder with the files from the new ZIP and reload it in your browser's extension manager.
 
 ## Run the extension locally
 

@@ -12,7 +12,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   let report = buyer && readMarketReport(id, buyer);
   if (!agent && /^[a-f0-9-]{36}$/.test(id)) {
     try {
-      const owner = await reportOwner(id);
+      const owner = await reportOwner(id, `glimpsea_pdf_${id}`);
       if (owner) report = extensionChatReport(owner, id);
     } catch (error) {
       if (!(error instanceof ExtensionDemoError)) throw error;

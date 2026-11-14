@@ -33,9 +33,14 @@ export function GET(request: Request) {
     const response = new NextResponse(null, { status: 303, headers: { Location: path } });
     response.headers.set("Cache-Control", "no-store");
     response.headers.set("Referrer-Policy", "no-referrer");
-    response.cookies.set(`glimpsea_report_${grant.job_id}`, createReportSession(grant.owner, grant.job_id), {
-      httpOnly: true, sameSite: "lax", path, maxAge: 3600,
+    const session = createReportSession(grant.owner, grant.job_id);
+    const options = {
+      httpOnly: true, sameSite: "lax" as const, maxAge: 3600,
       secure: (process.env.GLIMPSEA_PUBLIC_ORIGIN ?? url.origin).startsWith("https:"),
+    };
+    response.cookies.set(`glimpsea_report_${grant.job_id}`, session, { ...options, path });
+    response.cookies.set(`glimpsea_pdf_${grant.job_id}`, session, {
+      ...options, path: `/api/market-report/${grant.job_id}/pdf`,
     });
     return response;
   } catch (error) {
