@@ -164,11 +164,10 @@ button:disabled { cursor: not-allowed; }
 }
 .form-actions { gap: .4rem; }
 #access-note { text-align: center; }
-#trials, #access-note, #opportunity-form p {
+#trials, #access-note {
   color: var(--muted);
   font-size: .87rem;
 }
-#opportunity-status { font-size: .87rem; }
 
 .research-status { display: grid; gap: .55rem; }
 .research-status:has(#status:empty):not(:has(button:not([hidden]))) { display: none; }
@@ -177,7 +176,7 @@ button:disabled { cursor: not-allowed; }
   padding: .28rem .65rem;
   scroll-margin-top: .6rem;
 }
-#status:empty, #opportunity-status:empty { display: none; }
+#status:empty { display: none; }
 
 .disclosure > summary {
   position: relative;
@@ -202,8 +201,6 @@ button:disabled { cursor: not-allowed; }
 }
 .disclosure[open] > summary::after { transform: translateY(.2rem) rotate(225deg); }
 .disclosure > summary:hover { color: var(--red); }
-#opportunities { padding-block: .1rem; }
-#opportunity-form { border-top: 1px solid var(--line); padding-block: .75rem; }
 
 #scan-count { margin-top: .4rem; color: var(--muted); font-size: .87rem; }
 #scan-progress { display: block; width: 100%; height: .55rem; margin: .65rem 0 .25rem; accent-color: var(--red); }

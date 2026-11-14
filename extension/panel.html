@@ -95,40 +95,6 @@
         <ol id="scan-listings"></ol>
       </details>
     </section>
-    <details id="opportunities" class="disclosure panel-surface" hidden>
-      <summary>Find product opportunities</summary>
-      <form id="opportunity-form">
-        <fieldset id="opportunity-fields">
-          <label>Research topic
-            <select name="topic" required>
-              <option value="cafe">Cafe operations</option>
-              <option value="micro-wedding">Small events and micro weddings</option>
-              <option value="custom">My own topic</option>
-            </select>
-          </label>
-          <p id="snapshot-note">Compare ideas using the saved Etsy Marketplace Insights snapshot from November 14, 2026.</p>
-          <fieldset id="seller-details" hidden disabled>
-            <label>Product area or buyer need (optional)
-              <input name="ideaTopic" maxlength="120">
-            </label>
-            <label>Etsy keywords to compare (optional)
-              <input name="compareKeywords" maxlength="410" aria-describedby="compare-keywords-hint">
-            </label>
-            <p id="compare-keywords-hint">Enter three to five exact keywords separated by commas.</p>
-            <label>What can you make?
-              <input name="skills" maxlength="300" required>
-            </label>
-            <label>Setup budget (USD)
-              <input name="budget" type="number" value="0" min="0" max="10000" step="0.01" required>
-            </label>
-            <p id="opportunity-sample"></p>
-            <p>NEAR AI Cloud uses your answers and Etsy search keyword to suggest ideas.</p>
-          </fieldset>
-          <button id="open-opportunity" type="submit">Open private brief</button>
-        </fieldset>
-        <p id="opportunity-status" role="status"></p>
-      </form>
-    </details>
     <section id="history-section" aria-labelledby="history-heading" hidden>
       <h2 id="history-heading">Research history</h2>
       <div id="history"></div>

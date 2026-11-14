@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Glimpsea Research Demo",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Read Etsy search results and review the evidence for your next product idea.",
   "icons": {
     "16": "icons/glimpsea-16.png",

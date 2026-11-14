@@ -20,13 +20,13 @@ origin. The legacy receiver remains configured for older extension builds.
 Build the downloadable ZIP from a clean release checkout.
 
 ```sh
-node release/package-extension.mjs https://your-dalang-host glimpsea-chrome-v0.1.6-sample.zip
+node release/package-extension.mjs https://your-dalang-host glimpsea-chrome-v0.1.7-sample.zip
 ```
 
 For the Etsy live release, set `GLIMPSEA_ETSY_LIVE_BASIC=1` and include the Etsy permissions in the ZIP.
 
 ```sh
-node release/package-extension.mjs https://your-dalang-host glimpsea-chrome-v0.1.6.zip etsy-live
+node release/package-extension.mjs https://your-dalang-host glimpsea-chrome-v0.1.7.zip etsy-live
 ```
 
 Upload the packaged ZIP as an asset on a public GitHub Release and use its
@@ -45,5 +45,5 @@ The Dalang ingress should expose the following routes on the same HTTPS origin.
 The backend can stay bound to the loopback interface behind Nginx. Keep
 `Host` and `X-Forwarded-Proto` in the proxy configuration.
 
-The current download for the Vercel landing page is the [v0.1.6 GitHub Release ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.6/glimpsea-chrome-v0.1.6.zip).
+The current download for the Vercel landing page is the [v0.1.7 GitHub Release ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.7/glimpsea-chrome-v0.1.7.zip).
 Use **Download Glimpsea extension** as the button label.
