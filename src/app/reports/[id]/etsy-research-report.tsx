@@ -1,13 +1,11 @@
 import "@fontsource/fraunces/latin-700.css";
-import Link from "next/link";
 import type { Recommendation, ScanSeller } from "@/lib/etsy-recommendations";
 import type { DemoListingCapture } from "@/lib/demo-catalog";
 import { cafeMatches, ecbRateDate, ecbRateSource, listingSegment, priceSegments, seasonalPlan } from "@/lib/etsy-report-signals";
 import { BriefCopy } from "../../brief-copy";
+import { HeaderLogo } from "../../header-logo";
 import { GenerateRecommendations } from "./generate-recommendations";
 import styles from "./research-report.module.css";
-
-type ValidationScan = { pagesRead: number; listings: DemoListingCapture[] };
 
 function listingCsv(listings: DemoListingCapture[]) {
   const escape = (value: string) => `"${(/^[\s]*[=+@\-]/u.test(value) ? "'" + value : value).replaceAll('"', '""')}"`;
@@ -30,34 +28,6 @@ function tieReason(first: Recommendation, second?: Recommendation) {
   return "The first two ideas are close. Start here and use the buyer test to decide whether to keep going.";
 }
 
-function Validation({ card, scan }: { card: Recommendation; scan?: ValidationScan }) {
-  const search = `https://www.etsy.com/search?${new URLSearchParams({ q: card.keyword })}`;
-  const comparison = scan && priceSegments(scan.listings).filter(({ median }) => median !== null);
-  return (
-    <div className={styles.validation}>
-      <div>
-        <h3>Validation search: {scan ? "scan complete" : "not run yet"}</h3>
-        {scan ? (
-          <>
-            <p>“{card.keyword}” returned {scan.listings.length} unique listings across {scan.pagesRead} {scan.pagesRead === 1 ? "page" : "pages"}. Check which offers serve the same buyer.</p>
-            {comparison?.length ? <p>Median displayed prices in USD: {comparison.map(({ segment, median }) => `${segment.toLowerCase()} ${median}`).join(" · ")}.</p> : null}
-            <ul className={styles.validationLinks}>
-              {scan.listings.slice(0, 3).map(({ title, url }) => <li key={url}><a href={url} target="_blank" rel="noreferrer">{title}</a></li>)}
-            </ul>
-          </>
-        ) : <p>Open “{card.keyword}” on Etsy. Start a Basic scan with the same browser profile for a trial or the same wallet for a paid report. Reload this page when the scan is ready.</p>}
-        {!scan && <p className={styles.validationNote}>A new scan uses a trial or payment.</p>}
-        <p className={styles.validationNote}>{card.snapshot
-          ? <a href={card.snapshot.url} target="_blank" rel="noreferrer">Etsy Marketplace Insights · {card.snapshot.searches} searches · {card.snapshot.results} results · {card.snapshot.period}</a>
-          : <>Check search counts in <a href="https://help.etsy.com/hc/en-us/articles/35122361353239-How-Do-I-Use-Etsy-s-Marketplace-Insights-Tool" target="_blank" rel="noreferrer">Etsy Marketplace Insights</a> to measure demand.</>}</p>
-      </div>
-      <a className={styles.validationButton} href={search} target="_blank" rel="noreferrer">
-        {scan ? "Open Etsy results" : "Run validation search"}
-      </a>
-    </div>
-  );
-}
-
 function EaseBreakdown({ card }: { card: Recommendation }) {
   const points = [
     ["Time", card.workPoints, 45],
@@ -67,7 +37,7 @@ function EaseBreakdown({ card }: { card: Recommendation }) {
   return (
     <section className={styles.breakdown} aria-label="Ease score breakdown">
       <p><strong>Why {card.score}?</strong> {card.snapshot
-        ? "Time and setup cost carry most of the weight. The evidence includes a saved Etsy search count."
+        ? <>Time and setup cost carry most of the weight. The evidence includes a <a href={card.snapshot.url} target="_blank" rel="noreferrer">saved Etsy search count</a>.</>
         : "Time and setup cost carry most of the weight. Search demand for this idea is still unmeasured."}</p>
       {points.map(([label, value, max]) => (
         <div className={styles.scoreRow} key={label}>
@@ -92,7 +62,7 @@ function TestPlan({ card, id }: { card: Recommendation; id?: string }) {
       </section>
       <section>
         <h3>Price test</h3>
-        <p>Pick two prices after you check offers for the same format. Show the same mockup at each price to similar buyers. Count how many would buy at each price.</p>
+        <p>Pick two prices and show the same mockup at each price to similar buyers. Count how many would buy at each price.</p>
         <p><strong>$[LOW] vs $[HIGH]</strong> · Prices you choose</p>
         <p>{card.costCheck}</p>
       </section>
@@ -105,7 +75,7 @@ function TestPlan({ card, id }: { card: Recommendation; id?: string }) {
   );
 }
 
-export function EtsyResearchReport({ reportId, scan, keyword, pages, limit, seller, listings, cards, validations }: {
+export function EtsyResearchReport({ reportId, scan, keyword, pages, limit, seller, listings, cards }: {
   reportId: string;
   scan: string;
   keyword: string;
@@ -114,7 +84,6 @@ export function EtsyResearchReport({ reportId, scan, keyword, pages, limit, sell
   seller: ScanSeller;
   listings: DemoListingCapture[];
   cards: Recommendation[];
-  validations: Record<string, ValidationScan>;
 }) {
   const [first, second] = cards;
   // Prefer the saved season for reports with year-specific ideas.
@@ -127,7 +96,7 @@ export function EtsyResearchReport({ reportId, scan, keyword, pages, limit, sell
     <div className={styles.page}>
       <header className={styles.masthead}>
         <div className={styles.frame}>
-          <Link className={styles.brand} href="/">Glimpsea</Link>
+          <HeaderLogo href="/" />
           <p>{keyword} · {seller.audience} · Up to {workTime(seller.productionHours)} to make it · {listings.length} listings read</p>
         </div>
       </header>
@@ -177,7 +146,6 @@ export function EtsyResearchReport({ reportId, scan, keyword, pages, limit, sell
             </header>
             <p className={styles.product}>{first.product} {first.difference}</p>
             <TestPlan id="test-plan" card={first} />
-            <Validation card={first} scan={validations[first.id]} />
             <EaseBreakdown card={first} />
           </article>
 
@@ -191,10 +159,9 @@ export function EtsyResearchReport({ reportId, scan, keyword, pages, limit, sell
                 <h2>{card.name}</h2>
                 <p>{card.whyThisSearch}</p>
                 <details>
-                  <summary><strong>Validation search</strong> · {validations[card.id] ? "scan complete" : "not run yet"}</summary>
+                  <summary>See the test plan <span className="sr-only">for {card.name}</span></summary>
                   <p>{card.product} {card.difference}</p>
                   <TestPlan card={card} />
-                  <Validation card={card} scan={validations[card.id]} />
                   <EaseBreakdown card={card} />
                 </details>
               </article>
@@ -220,7 +187,7 @@ export function EtsyResearchReport({ reportId, scan, keyword, pages, limit, sell
             <aside className={styles.finding}>
               <h3>{relevant.length} of {listings.length} titles mention cafes, coffee shops, or related terms</h3>
               <p>{relevant.length === 0
-                ? "There may be few offers for cafes, or buyers may use a different search. Try the idea’s keyword to check the offers. Use Marketplace Insights and the buyer test to check interest."
+                ? "There may be few offers for cafes, or buyers may use a different search. Use the buyer test to see whether cafe owners would pay."
                 : "These are title matches. Open similar listings to check who they serve, then use Marketplace Insights and the buyer test to check interest."}</p>
             </aside>
           )}
@@ -237,7 +204,7 @@ export function EtsyResearchReport({ reportId, scan, keyword, pages, limit, sell
             <div>
               <p>The ease score gives up to 45 points for mockup time and 25 for estimated setup cost. A similar product format in the scan earns 15 evidence points. Saved Etsy Marketplace Insights figures for the idea’s exact keyword earn 15 more.</p>
               <p>If all ideas are in the same category and have figures from the same Etsy snapshot, searches per 1,000 results decide the order first. For tied scores, Glimpsea compares time and cost. If they still tie and buyer fit was assessed, the idea that meets the buyer’s need more directly goes first.</p>
-              <p>Product formats come from listing titles. The original prices are in the CSV. A follow-up scan shows offers and displayed prices for its keyword. Demand comes from separate search data or buyer tests.</p>
+              <p>Product formats come from listing titles. The original prices are in the CSV. Use Etsy Marketplace Insights for search counts and the buyer test to check interest.</p>
             </div>
           </details>
         </footer>

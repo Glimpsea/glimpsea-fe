@@ -446,7 +446,7 @@ export async function analyzeDemo(owner: string, id: unknown) {
   return demoJob(owner, job.id);
 }
 
-function summarizeCaptures(job: Pick<Job, "id" | "keyword" | "plan">) {
+function summarizeCaptures(job: Job) {
   const rows = database().prepare("SELECT capture_json FROM extension_demo_captures WHERE job_id = ? ORDER BY page")
     .all(job.id) as { capture_json: string }[];
   const unique = new Map<string, DemoListingCapture>();
@@ -509,30 +509,7 @@ export async function recommendForSavedReport(owner: string, id: string) {
   }
 }
 
-function validationScans(job: Job, cards: Recommendation[]) {
-  const connection = database();
-  const normalize = (value: string) => value.trim().toLowerCase().replace(/\s+/gu, " ");
-  const keywords = new Set(cards.map(({ keyword }) => normalize(keyword)));
-  const later = connection.prepare(`
-    SELECT id, keyword FROM extension_demo_jobs
-    WHERE owner = ? AND state = 'complete' AND plan = 'basic' AND pages > 0
-      AND json_extract(order_json, '$.collection') = 'etsy'
-      AND rowid > (SELECT rowid FROM extension_demo_jobs WHERE id = ?)
-    ORDER BY rowid DESC
-  `).all(job.owner, job.id) as Pick<Job, "id" | "keyword">[];
-  const scans = new Map<string, Pick<Job, "id" | "keyword">>();
-  for (const scan of later) {
-    const keyword = normalize(scan.keyword);
-    if (keywords.has(keyword) && !scans.has(keyword)) scans.set(keyword, scan);
-    if (scans.size === keywords.size) break;
-  }
-  return Object.fromEntries(cards.flatMap(({ id, keyword }) => {
-    const scan = scans.get(normalize(keyword));
-    return scan ? [[id, summarizeCaptures({ ...scan, plan: "basic" })]] as const : [];
-  }));
-}
-
-export function demoReportView(owner: string, id: string, includeValidation = true) {
+export function demoReportView(owner: string, id: string) {
   const job = readJob(owner, id);
   if (job.state !== "complete" || !job.markdown) throw new ExtensionDemoError("The report is not ready.", 404);
   const order = JSON.parse(job.order_json) as StoredOrder;
@@ -545,13 +522,13 @@ export function demoReportView(owner: string, id: string, includeValidation = tr
     const stored = saved?.cards_json ? JSON.parse(saved.cards_json) as Recommendation[] : [];
     const cards = stored[0]?.whyThisSearch ? stored : [];
     return { markdown, etsy: { keyword: job.keyword, pages: job.pages, limit: plans[job.plan],
-      seller: order as DemoOrder, listings, cards, validations: includeValidation && cards.length ? validationScans(job, cards) : {} } };
+      seller: order as DemoOrder, listings, cards } };
   }
   return { markdown: job.markdown };
 }
 
 export function demoReport(owner: string, id: string) {
-  return demoReportView(owner, id, false).markdown;
+  return demoReportView(owner, id).markdown;
 }
 
 export function issueReportTicket(owner: string, id: string, fingerprint?: string) {

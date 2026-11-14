@@ -43,17 +43,9 @@ In the current source, type any keyword in **Etsy keyword** or use the keyword f
 
 ## Product recommendations
 
-With NEAR AI Cloud configured, the private Etsy report opens with one idea to test first. **See the test plan** jumps to the buyer test, price test, and checks to run before publishing. **Compare all 3 ideas** jumps to the idea cards. The first card is open, and the other two expand for more detail. The ease score combines mockup time, setup cost, and available evidence. New Year searches include a suggested schedule.
+The private Etsy report uses the Glimpsea logo and colors from the landing page. With NEAR AI Cloud configured, it opens with one idea to test first. **See the test plan** jumps to the buyer test, price test, and checks to run before publishing. **Compare all 3 ideas** jumps to the idea cards. The first card is open, and the other two expand for more detail. The ease score combines mockup time, setup cost, and available evidence. New Year searches include a suggested schedule.
 
 Before scanning, use **Set product limits** to add a product type, a setup budget in USD, or what you can make. These fields are optional. If an older report has saved listings and no cards, select **Generate product ideas** to use the existing scan.
-
-### Run a validation search
-
-1. In an idea card, select **Run validation search** to open Etsy with the idea’s exact keyword. Expand an alternative card to find its button.
-2. Open Glimpsea on that Etsy tab and start a new Basic scan with the same browser profile for a trial report or the same NEAR account for a paid report. The new scan uses a trial or a payment.
-3. When the scan is ready, reload the original report. The card shows the latest completed follow-up scan for that keyword and owner, with listing examples and median displayed prices in USD where available.
-
-The follow-up scan shows listings and prices for the idea’s keyword. Use Etsy Marketplace Insights for search counts and the buyer test to check interest.
 
 **What the scan shows** groups the original listings by title signals and gives USD estimates using the dated ECB reference rates. The footer has **Show all listings**, **Download CSV** for the original displayed prices, and **How the score works**.
 
