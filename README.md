@@ -20,6 +20,16 @@ Install Chrome, Node.js 22.22.2 or later, and Bun.
 5. Open `chrome://extensions`. Turn on **Developer mode** and select **Load unpacked**.
 6. Select the `extension` folder in the repository. Open **Glimpsea Research Demo** from the Chrome extensions menu.
 
+## Find product opportunities
+
+In the side panel, sign in if wallet mode is enabled. Expand **Find product opportunities**, choose **Cafe operations** or **Small events and micro weddings**, and select **Open private brief**. In wallet mode, you can reopen each brief from your research history.
+
+The pilot compares 15 candidates from the Etsy Marketplace Insights snapshot recorded November 14, 2026. It labels direct lookups, related terms, and missing data. The two briefs show a decision and a small product test. Opening a brief uses the saved snapshot and does not consume a Basic trial.
+
+To research a new topic, enter your target buyers and available hours before starting a Basic **Etsy live search**. After the scan, choose **My own topic** under **Find product opportunities**. Add your skills, setup budget, and an optional topic, then select **Generate private brief**. The scan and brief share the target buyers and hours you entered for the scan. With `NEAR_AI_API_KEY` configured on the server, NEAR AI Cloud uses these inputs and the search keyword to propose three to five ideas. Glimpsea checks their exact keywords against the saved Marketplace Insights snapshot. It flags missing and related-term evidence and links to the Etsy scan for listing and price comparisons. The scan uses the usual trial or checkout.
+
+In Opera GX, a NEAR testnet account used one Basic trial for `dog daycare report card`. Glimpsea read 111 unique listings from two live Etsy pages. Both private reports showed the same seller input, **Independent dog daycare owners in the US**, with a four-hour limit. NEAR AI Cloud returned three ideas. The brief flagged all three keywords as missing from the saved Marketplace Insights snapshot and deferred ranking. Both reports returned HTTP 404 without a session.
+
 ## Testnet wallet and checkout
 
 1. In the side panel, select **Connect NEAR testnet wallet**. Choose a wallet and sign the login message in the new tab.
@@ -101,7 +111,7 @@ GLIMPSEA_EXTENSION_NEAR_TESTNET=0 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_ETSY_LIVE_B
 
 1. Open `opera://extensions` in Opera GX. Turn on **Developer mode**, select **Load unpacked**, and choose this repository's `extension` folder. If Glimpsea is already installed from that folder, select **Reload**.
 2. Open [Etsy search for cafe owner supplies](https://www.etsy.com/search?q=cafe+owner+supplies). From the Opera GX extensions menu, open **Glimpsea Research Demo** beside the search results.
-3. Choose **Etsy live search**. If prompted, select **Allow Etsy access** so the panel can show the keyword from the active tab. Etsy live uses Basic with up to two results pages. Use a Basic trial or select **Simulate payment**, then click **Start analysis**.
+3. Choose **Etsy live search**. If prompted, select **Allow Etsy access** so the panel can show the keyword from the active tab. Enter your target buyers and available hours. Etsy live uses Basic with up to two results pages. Use a Basic trial or select **Simulate payment**, then click **Start analysis**.
 4. Watch the scan highlight cards and move to page 2. Click **Open private report** when the panel shows **Report ready**. The report shows the title, active price when available, and one Etsy URL per listing ID. For the cafe search, it also groups matching titles, summarizes prices by currency, and compares three product ideas against the seller's time limit.
 
 For the paid pilot, set `GLIMPSEA_EXTENSION_NEAR_TESTNET=1` and configure the testnet receiver as shown under **Testnet wallet and checkout**. Keep `GLIMPSEA_ETSY_LIVE_BASIC=1`. Connect your testnet wallet, select **Pay on NEAR testnet**, and verify the exact quote in checkout. Return to the Etsy search tab and select **Resume research**.

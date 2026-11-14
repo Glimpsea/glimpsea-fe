@@ -6,7 +6,7 @@ function briefLine(line: string) {
   const label = line.match(/^\*\*([^*]+)\*\* (.*)$/);
   if (label) return <><strong>{label[1]}</strong> {unescapeText(label[2])}</>;
 
-  const reference = line.match(/^\[(.+)\]\((https?:\/\/[^\s)]+)\)(.*)$/);
+  const reference = line.match(/^\[(.+)\]\((https?:\/\/[^\s)]+|\/reports\/[a-f0-9-]{36})\)(.*)$/);
   if (reference) {
     return (
       <>
@@ -19,13 +19,15 @@ function briefLine(line: string) {
   return unescapeText(line);
 }
 
-export function BriefCopy({ markdown }: { markdown: string }) {
+export function BriefCopy({ markdown, standalone = false }: { markdown: string; standalone?: boolean }) {
+  const SectionHeading = standalone ? "h2" : "h3";
+  const Subheading = standalone ? "h3" : "h4";
   return (
     <div className="brief-copy">
       {markdown.split(/\n{2,}/).map((block, index) => {
         if (block === "# Glimpsea wall art brief" || block === "# Glimpsea product research brief") return null;
-        if (block.startsWith("## ")) return <h3 key={index}>{unescapeText(block.slice(3))}</h3>;
-        if (block.startsWith("### ")) return <h4 key={index}>{unescapeText(block.slice(4))}</h4>;
+        if (block.startsWith("## ")) return <SectionHeading className="brief-section-title" key={index}>{unescapeText(block.slice(3))}</SectionHeading>;
+        if (block.startsWith("### ")) return <Subheading className="brief-subheading" key={index}>{unescapeText(block.slice(4))}</Subheading>;
 
         const lines = block.split("\n");
         if (lines.every((line) => line.startsWith("- "))) {

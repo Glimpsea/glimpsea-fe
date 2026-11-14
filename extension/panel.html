@@ -12,9 +12,40 @@
   <main>
     <h1>Glimpsea</h1>
     <p id="demo-note">Read search results and open a research report.</p>
+    <button id="open-pilot" class="secondary" type="button" lang="id">Lihat peluang Etsy</button>
     <p id="wallet-status"></p>
     <button id="connect-wallet" type="button" hidden>Connect NEAR testnet wallet</button>
     <button id="disconnect-wallet" class="secondary" type="button" hidden>Disconnect wallet</button>
+    <details id="opportunities" hidden>
+      <summary>Find product opportunities</summary>
+      <form id="opportunity-form">
+        <fieldset id="opportunity-fields">
+          <label>Research topic
+            <select name="topic" required>
+              <option value="cafe">Cafe operations</option>
+              <option value="micro-wedding">Small events and micro weddings</option>
+              <option value="custom">My own topic</option>
+            </select>
+          </label>
+          <p id="snapshot-note">Compare ideas using the saved Etsy Marketplace Insights snapshot from November 14, 2026.</p>
+          <fieldset id="seller-details" hidden disabled>
+            <label>Product area or buyer need (optional)
+              <input name="ideaTopic" maxlength="120">
+            </label>
+            <label>What can you make?
+              <input name="skills" maxlength="300" required>
+            </label>
+            <label>Setup budget (USD)
+              <input name="budget" type="number" value="0" min="0" max="10000" step="0.01" required>
+            </label>
+            <p id="opportunity-sample"></p>
+            <p>NEAR AI Cloud uses your answers and Etsy search keyword to suggest ideas.</p>
+          </fieldset>
+          <button id="open-opportunity" type="submit">Open private brief</button>
+        </fieldset>
+        <p id="opportunity-status" role="status"></p>
+      </form>
+    </details>
     <form id="research" hidden>
       <fieldset id="research-options">
       <label id="source-field" hidden>Source
@@ -32,7 +63,7 @@
       <label id="catalog-keyword">Keyword <input name="keyword" value="cafe owner supplies" required maxlength="120" aria-describedby="keyword-error"></label>
       <p id="keyword-error" role="alert" hidden></p>
       <button id="open-catalog" class="secondary" type="button">Open sample catalog</button>
-      <label>Target buyers in the US <input name="audience" value="US cafe owners" required maxlength="180"></label>
+      <label>Target buyers in the US <input name="audience" required maxlength="180"></label>
       <label>Hours to prepare the first product <input name="productionHours" type="number" value="4" min="0.5" max="80" step="0.5" required></label>
       <label id="category-field">Category
         <select name="category">

@@ -73,6 +73,32 @@ assert.match(await report.text(), /Coffee Tasting Flight Kit/);
 assert.equal((await fetch(origin + reportPath)).status, 404);
 console.log("PASS The report requires the owner session. The temporary link works once.");
 
+assert.equal((await post("find-opportunities", { topic: "unsupported" })).status, 400);
+const remainingBeforeBriefs = (await ok("trials")).remaining;
+for (const [topic, expectedTitle, missingKeyword] of [
+  ["cafe", "Cafe shift handoff checklist", "coffee shop inventory tracker"],
+  ["micro-wedding", "One-page micro wedding timeline", "baby shower timeline template"],
+]) {
+  const job = await ok("find-opportunities", { topic });
+  assert.equal(job.state, "complete");
+  assert.equal((await ok("find-opportunities", { topic })).id, job.id);
+  assert.equal((await post("report", { id: job.id }, other)).status, 404);
+  assert.equal((await fetch(origin + job.reportPath)).status, 404);
+  const launch = await post("open", { id: job.id }, owner, "/session");
+  assert.ok(launch.ok);
+  const { reportPath } = await launch.json();
+  const grant = await fetch(origin + reportPath, { redirect: "manual" });
+  const cookie = grant.headers.get("Set-Cookie")?.split(";")[0];
+  assert.ok(cookie);
+  const report = await fetch(origin + job.reportPath, { headers: { Cookie: cookie } });
+  assert.equal(report.status, 200);
+  const html = await report.text();
+  assert.ok(html.includes(expectedTitle));
+  assert.ok(html.includes(`(${missingKeyword}). Marketplace Insights data unavailable in this snapshot.`));
+}
+assert.equal((await ok("trials")).remaining, remainingBeforeBriefs);
+console.log("PASS Both opportunity briefs show missing evidence, protect reports, and preserve Basic trials.");
+
 const short = await ok("start", { ...example, keyword: "cafe name stamp", plan: "deep", access: "simulated-payment" });
 const lastPage = await ok("page", { id: short.id, page: 1 });
 assert.equal(lastPage.job.state, "ready");

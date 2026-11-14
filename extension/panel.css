@@ -4,6 +4,11 @@ body { margin: 0; }
 main { max-width: 32rem; padding: 1.4rem; margin: auto; }
 h1 { margin: 0; font: italic 2.4rem/1 Georgia, serif; }
 form { display: grid; gap: .8rem; border-top: 3px solid #f31328; padding-top: 1rem; }
+#opportunities { margin-block: .85rem; border-block: 1px solid currentColor; }
+#opportunities summary { min-height: 44px; box-sizing: border-box; padding: .6rem 0; font-weight: 650; cursor: pointer; }
+#opportunity-form { border: 0; padding: 0 0 .8rem; }
+#opportunity-form p { margin: 0; font-size: .88rem; }
+#opportunity-status:empty { display: none; }
 fieldset { display: grid; min-width: 0; gap: .7rem; margin: 0; padding: 0; border: 0; }
 label { display: grid; gap: .3rem; font-weight: 600; }
 input, select, button { box-sizing: border-box; width: 100%; min-height: 44px; border: 1px solid currentColor; border-radius: .35rem; font: inherit; padding: .5rem .7rem; color: inherit; background: #fff9eb; }

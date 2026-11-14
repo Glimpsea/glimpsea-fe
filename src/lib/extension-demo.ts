@@ -6,6 +6,7 @@ import { research } from "./research";
 import { renderEtsyBrief } from "./etsy-brief";
 import { ExtensionDemoError } from "./extension-errors";
 import { checkoutReceiver, verifyTestnetTransfer } from "./near-testnet";
+import { opportunitySnapshotDate, opportunityTopic, readOpportunityInput, renderNewOpportunityBrief, renderOpportunityBrief } from "./opportunity-brief";
 
 export { ExtensionDemoError } from "./extension-errors";
 
@@ -15,11 +16,12 @@ const testnetPrices = { basic: 10n ** 22n, medium: 3n * 10n ** 22n, deep: 6n * 1
 type Checkout = { id: string; owner: string; receiver: string; amount: string; tx_hash: string | null };
 type Capture = { page: number; listings: DemoListingCapture[]; hasNext: boolean; nextUrl?: string };
 type DemoOrder = OrderInput & { collection?: "dom" | "etsy" };
+type StoredOrder = DemoOrder | { collection: "opportunities"; topic: string; snapshot: string };
 type Job = {
   id: string;
   owner: string;
   plan: Plan;
-  access: "trial" | "simulated-payment" | "testnet-payment";
+  access: "trial" | "simulated-payment" | "testnet-payment" | "snapshot" | "opportunity";
   keyword: string;
   order_json: string;
   pages: number;
@@ -135,12 +137,62 @@ function readJob(owner: string, id: unknown): Job {
   return job;
 }
 
+export function createOpportunityReport(owner: string, topicId: unknown) {
+  const topic = opportunityTopic(topicId);
+  if (!topic) throw new ExtensionDemoError("Choose a supported research topic.");
+
+  const order = JSON.stringify({ collection: "opportunities", topic: topicId, snapshot: opportunitySnapshotDate });
+  const connection = database();
+  connection.exec("BEGIN IMMEDIATE");
+  let id: string;
+  try {
+    const saved = connection.prepare(`
+      SELECT id FROM extension_demo_jobs WHERE owner = ? AND access = 'snapshot' AND order_json = ?
+    `).get(owner, order) as { id: string } | undefined;
+    id = saved?.id ?? randomUUID();
+    if (!saved) {
+      connection.prepare(`
+        INSERT INTO extension_demo_jobs (id, owner, plan, access, keyword, order_json, state, markdown)
+        VALUES (?, ?, 'basic', 'snapshot', ?, ?, 'complete', ?)
+      `).run(id, owner, topic.title, order, renderOpportunityBrief(topic));
+    }
+    connection.exec("COMMIT");
+  } catch (error) {
+    connection.exec("ROLLBACK");
+    throw error;
+  }
+  return demoJob(owner, id);
+}
+
+export async function createNewOpportunityReport(owner: string, input: Record<string, unknown>) {
+  const sample = readJob(owner, input.sampleId);
+  const order = JSON.parse(sample.order_json) as StoredOrder;
+  if (sample.state !== "complete" || order.collection !== "etsy") {
+    throw new ExtensionDemoError("Finish an Etsy live analysis before generating ideas.");
+  }
+  const seller = readOpportunityInput({ ...input, audience: order.audience, productionHours: order.productionHours });
+  const { pagesRead, listings } = summarizeCaptures(sample);
+  const markdown = await renderNewOpportunityBrief(seller, {
+    id: sample.id, keyword: sample.keyword, pages: pagesRead, listings: listings.length,
+  });
+  const id = randomUUID();
+  database().prepare(`
+    INSERT INTO extension_demo_jobs (id, owner, plan, access, keyword, order_json, state, markdown)
+    VALUES (?, ?, 'basic', 'opportunity', ?, ?, 'complete', ?)
+  `).run(id, owner, seller.topic || sample.keyword, JSON.stringify({
+    collection: "opportunities", seller, sampleId: sample.id, snapshot: opportunitySnapshotDate,
+  }), markdown);
+  return demoJob(owner, id);
+}
+
 export function demoJob(owner: string, id: unknown) {
   const job = readJob(owner, id);
-  const collection = (JSON.parse(job.order_json) as DemoOrder).collection;
+  const order = JSON.parse(job.order_json) as StoredOrder;
+  const { collection } = order;
   const checkout = job.access === "testnet-payment" ? readCheckout(owner, job.id) : undefined;
   return {
     id: job.id, state: job.state, pages: job.pages, limit: plans[job.plan], keyword: job.keyword, collection,
+    ...(order.collection === "etsy" && { audience: order.audience, productionHours: order.productionHours }),
     ...(collection === "dom" && job.state === "browsing" && { catalogPath: catalogPath(job.keyword, job.pages + 1) }),
     ...(collection === "etsy" && job.state === "browsing" && job.pages > 0 && { nextUrl: savedCapture(job, job.pages).nextUrl }),
     ...(collection && job.pages > 0 && { listings: summarizeCaptures(job).listings }),
@@ -151,8 +203,8 @@ export function demoJob(owner: string, id: unknown) {
 
 export function listDemoJobs(owner: string) {
   const jobs = database().prepare(`
-    SELECT id, keyword, plan, state FROM extension_demo_jobs WHERE owner = ? ORDER BY rowid DESC LIMIT 20
-  `).all(owner) as { id: string; keyword: string; plan: string; state: Job["state"] }[];
+    SELECT id, keyword, plan, state, access FROM extension_demo_jobs WHERE owner = ? ORDER BY rowid DESC LIMIT 20
+  `).all(owner) as Pick<Job, "id" | "keyword" | "plan" | "state" | "access">[];
   return { jobs };
 }
 

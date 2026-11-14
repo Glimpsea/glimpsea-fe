@@ -341,13 +341,13 @@ function parseUsage(result: Record<string, unknown>, model: string): Usage | und
   return { inputTokens, outputTokens, model: typeof result.model === "string" ? result.model : model };
 }
 
-async function runCloud<T>(order: OrderInput, sources: Source[], prompt: string,
-  validate: (value: unknown, order: OrderInput) => T, catalogEvidence?: CatalogEvidence): Promise<{ plan: T; usage?: Usage }> {
+export async function runCloud<T>(input: object, prompt: string,
+  validate: (value: unknown) => T, defaultMaxTokens = 2600): Promise<{ plan: T; usage?: Usage }> {
   const key = process.env.NEAR_AI_API_KEY?.trim();
   if (!key) throw new Error("NEAR_AI_API_KEY is required for NEAR AI Cloud research.");
 
   const model = process.env.NEAR_AI_MODEL?.trim() || DEFAULT_MODEL;
-  const maxTokens = readLimit("GLIMPSEA_RESEARCH_MAX_TOKENS", order.format ? 1800 : 2600, 512, 4096);
+  const maxTokens = readLimit("GLIMPSEA_RESEARCH_MAX_TOKENS", defaultMaxTokens, 512, 4096);
   const timeout = readLimit("GLIMPSEA_RESEARCH_TIMEOUT_MS", 30_000, 1000, 60_000);
   const signal = AbortSignal.timeout(timeout);
   let reason = "";
@@ -367,7 +367,7 @@ async function runCloud<T>(order: OrderInput, sources: Source[], prompt: string,
           ...(THINKING_TOGGLE_MODELS.has(model) ? { chat_template_kwargs: { enable_thinking: false } } : {}),
           messages: [
             { role: "system", content: reason ? `${prompt}\n\nWrite a fresh brief. Fix this validation error: ${reason}` : prompt },
-            { role: "user", content: JSON.stringify({ order, references: sources, catalogEvidence }) },
+            { role: "user", content: JSON.stringify(input) },
           ],
         }),
       });
@@ -391,7 +391,7 @@ async function runCloud<T>(order: OrderInput, sources: Source[], prompt: string,
       const message = asObject(choice.message);
       const content = requireText(message.content, 16_000);
       const json = content.match(/^```(?:json)?\s*([\s\S]+?)\s*```$/i)?.[1] ?? content;
-      return { plan: validate(JSON.parse(json), order), usage: attemptUsage && usage };
+      return { plan: validate(JSON.parse(json)), usage: attemptUsage && usage };
     } catch (error) {
       if (signal.aborted) throw new ResearchServiceError("NEAR AI Cloud research timed out.");
       reason = error instanceof BriefValidationError ? error.message : "Expected valid JSON.";
@@ -429,7 +429,7 @@ export async function research(input: OrderInput, catalogEvidence?: CatalogEvide
   if (order.format) {
     const { plan, usage } = fixture
       ? { plan: validatePlan(demoPlan, order), usage: undefined }
-      : await runCloud(order, sources, SYSTEM_PROMPT, validatePlan);
+      : await runCloud({ order, references: sources }, SYSTEM_PROMPT, (value) => validatePlan(value, order), 1800);
     const brief: Brief = { schemaVersion: 1, ...plan, ...metadata };
     return { brief, markdown: renderBrief(brief, order), provider, usage };
   }
@@ -447,7 +447,7 @@ export async function research(input: OrderInput, catalogEvidence?: CatalogEvide
         stop: "Pause if neither happens.",
       },
     } : cafeProductPlan, order), usage: undefined }
-    : await runCloud(order, sources, PRODUCT_PROMPT, validateProductPlan, catalogEvidence);
+    : await runCloud({ order, references: sources, catalogEvidence }, PRODUCT_PROMPT, (value) => validateProductPlan(value, order));
   const brief: Brief = { schemaVersion: 2, ...plan, ...metadata };
   return { brief, markdown: renderBrief(brief, order), provider, usage };
 }

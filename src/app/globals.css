@@ -254,7 +254,7 @@ a.wordmark {
 
 .brief-copy > * + * { margin-top: .75rem; }
 
-.brief-copy h3 {
+.brief .brief-copy .brief-section-title {
   margin-top: 2rem;
   padding-top: 1rem;
   border-top: 1px solid color-mix(in srgb, var(--color-ink) 35%, transparent);
@@ -262,7 +262,7 @@ a.wordmark {
   letter-spacing: -.035em;
 }
 
-.brief-copy h4 { margin-top: 1.35rem; font-size: 1.15rem; font-weight: 600; }
+.brief-copy .brief-subheading { margin-top: 1.35rem; font-size: 1.15rem; font-weight: 600; }
 .brief-copy p > span, .reference-note { display: block; }
 .brief-copy ul { padding-left: 1.25rem; list-style: disc; }
 .brief-copy li + li { margin-top: .5rem; }

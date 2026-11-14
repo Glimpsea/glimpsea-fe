@@ -1,4 +1,4 @@
-import { analyzeDemo, browseDemoPage, demoJob, demoOwner, demoReport, ExtensionDemoError, listDemoJobs, payDemo, startDemo, trialsRemaining } from "@/lib/extension-demo";
+import { analyzeDemo, browseDemoPage, createNewOpportunityReport, createOpportunityReport, demoJob, demoOwner, demoReport, ExtensionDemoError, listDemoJobs, payDemo, startDemo, trialsRemaining } from "@/lib/extension-demo";
 import { cookies } from "next/headers";
 import { nearOwner, nearSessionCookie, requestNearToken, sessionAccount } from "@/lib/near-auth";
 import { nearMode } from "@/lib/near-testnet";
@@ -26,6 +26,8 @@ export async function POST(request: Request) {
     switch (input.action) {
       case "trials": result = { remaining: trialsRemaining(owner), accountId }; break;
       case "start": result = startDemo(owner, input, accountId); break;
+      case "find-opportunities": result = createOpportunityReport(owner, input.topic); break;
+      case "generate-opportunities": result = await createNewOpportunityReport(owner, input); break;
       case "jobs": result = listDemoJobs(owner); break;
       case "pay":
         if (!accountId) throw new ExtensionDemoError("Connect a NEAR testnet wallet first.", 401);

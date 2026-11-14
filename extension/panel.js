@@ -1,5 +1,6 @@
 /* global readEtsySearch */
 const origin = "http://127.0.0.1:3045";
+const pilotButton = document.querySelector("#open-pilot");
 const catalogButton = document.querySelector("#open-catalog");
 const form = document.querySelector("#research");
 const options = document.querySelector("#research-options");
@@ -22,12 +23,21 @@ const scanResults = document.querySelector("#scan-results");
 const scanCount = document.querySelector("#scan-count");
 const scanProgress = document.querySelector("#scan-progress");
 const scanListings = document.querySelector("#scan-listings");
+const opportunities = document.querySelector("#opportunities");
+const opportunityForm = document.querySelector("#opportunity-form");
+const opportunityFields = document.querySelector("#opportunity-fields");
+const opportunityStatus = document.querySelector("#opportunity-status");
+const sellerDetails = document.querySelector("#seller-details");
+const opportunitySample = document.querySelector("#opportunity-sample");
+const opportunityButton = document.querySelector("#open-opportunity");
+const snapshotNote = document.querySelector("#snapshot-note");
 let owner;
 let activeJob;
 let token;
 let accountId;
 let mode;
 let working = false;
+let openingOpportunity = false;
 let etsyTabKeyword = "";
 let etsyReadVersion = 0;
 const sampleKeyword = form.elements.keyword.defaultValue;
@@ -72,8 +82,19 @@ function pendingJob() {
 }
 
 function updateControls() {
-  options.disabled = working || Boolean(pendingJob());
-  startButton.disabled = working || (liveSelected() && !pendingJob() && !etsyTabKeyword);
+  options.disabled = working || openingOpportunity || Boolean(pendingJob());
+  startButton.disabled = working || openingOpportunity || (liveSelected() && !pendingJob() && !etsyTabKeyword);
+  opportunityFields.disabled = working || openingOpportunity;
+  const custom = opportunityForm.elements.topic.value === "custom";
+  const sample = activeJob?.collection === "etsy" && activeJob.state === "complete" ? activeJob : null;
+  sellerDetails.hidden = sellerDetails.disabled = !custom;
+  snapshotNote.hidden = custom;
+  opportunityButton.disabled = custom && !sample;
+  opportunityButton.textContent = custom ? "Generate private brief" : "Open private brief";
+  opportunitySample.textContent = sample
+    ? `Using your Etsy live scan for “${sample.keyword}” · ${sample.audience} · up to ${sample.productionHours} hours.`
+    : "Enter your target buyers and available hours below, then run an Etsy live analysis.";
+  logoutButton.disabled = working || openingOpportunity;
   startButton.classList.toggle("secondary", !checkoutButton.hidden || !reportButton.hidden);
 }
 
@@ -295,8 +316,14 @@ async function refresh() {
     const button = document.createElement("button");
     button.type = "button";
     button.className = "secondary";
-    button.textContent = `${job.keyword} · ${job.state.replaceAll("-", " ")}`;
-    button.addEventListener("click", () => void withProgress(async () => run(await call("status", { id: job.id }))));
+    button.textContent = job.access === "snapshot" ? `Open ${job.keyword}` : `${job.keyword} · ${job.state.replaceAll("-", " ")}`;
+    button.addEventListener("click", () => {
+    if (job.access === "snapshot" || job.access === "opportunity") {
+        void withOpportunityProgress(async () => openPrivateReport(await call("status", { id: job.id })));
+      } else {
+        void withProgress(async () => run(await call("status", { id: job.id })));
+      }
+    });
     history.append(button);
   }
 }
@@ -350,10 +377,9 @@ async function run(job) {
 }
 
 async function withProgress(work) {
-  if (working) return;
+  if (working || openingOpportunity) return;
   working = true;
   clearKeywordError();
-  logoutButton.disabled = true;
   catalogButton.disabled = true;
   checkoutButton.hidden = true;
   reportButton.hidden = true;
@@ -379,7 +405,6 @@ async function withProgress(work) {
   } finally {
     working = false;
     updateControls();
-    logoutButton.disabled = false;
     catalogButton.disabled = false;
   }
 }
@@ -389,6 +414,7 @@ async function showWallet() {
   connectButton.hidden = Boolean(accountId);
   logoutButton.hidden = !accountId;
   form.hidden = !accountId;
+  opportunities.hidden = !accountId;
   form.elements.access.options[1].textContent = "Pay on NEAR testnet";
   form.elements.access.options[1].value = "testnet-payment";
   if (accountId) await updateSource();
@@ -409,6 +435,8 @@ async function resetWallet(revoke = true) {
   scanResults.hidden = true;
   scanListings.replaceChildren();
   history.replaceChildren();
+  opportunities.open = false;
+  opportunityStatus.textContent = "";
   await showWallet();
 }
 
@@ -516,11 +544,65 @@ checkoutButton.addEventListener("click", () => {
   if (activeJob) void chrome.tabs.create({ url: `${origin}/wallet?checkout=${encodeURIComponent(activeJob.id)}` });
 });
 
+async function openPrivateReport(job) {
+  const { reportPath } = mode.nearTestnet ? job : await call("open", { id: job.id }, "/session");
+  await chrome.tabs.create({ url: origin + reportPath });
+}
+
+pilotButton.addEventListener("click", () => {
+  void chrome.tabs.create({ url: `${origin}/peluang` });
+});
+
+async function withOpportunityProgress(work, message = "Opening your brief…") {
+  if (working || openingOpportunity) return;
+  openingOpportunity = true;
+  updateControls();
+  opportunityStatus.textContent = message;
+  try {
+    await work();
+    opportunityStatus.textContent = "Private brief opened in a new tab.";
+  } catch (error) {
+    if (error.status === 401 && mode.nearTestnet) {
+      await resetWallet(false);
+      status.textContent = "Connect your wallet again to open a private brief.";
+    } else {
+      opportunityStatus.textContent = error.message;
+    }
+  } finally {
+    openingOpportunity = false;
+    updateControls();
+  }
+}
+
+opportunityForm.elements.topic.addEventListener("change", updateControls);
+opportunityForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  const fields = opportunityForm.elements;
+  const topic = fields.topic.value;
+  if (topic === "custom") {
+    if (activeJob?.collection !== "etsy" || activeJob.state !== "complete") return;
+    const input = {
+      sampleId: activeJob.id,
+      topic: fields.ideaTopic.value,
+      skills: fields.skills.value,
+      budgetUsd: fields.budget.valueAsNumber,
+    };
+    void withOpportunityProgress(async () => {
+      await openPrivateReport(await call("generate-opportunities", input));
+      await refresh();
+    }, "Preparing 3–5 product ideas…");
+    return;
+  }
+  void withOpportunityProgress(async () => {
+    await openPrivateReport(await call("find-opportunities", { topic }));
+    await refresh();
+  });
+});
+
 reportButton.addEventListener("click", async () => {
   if (!activeJob) return;
   try {
-    const { reportPath } = mode.nearTestnet ? activeJob : await call("open", { id: activeJob.id }, "/session");
-    await chrome.tabs.create({ url: origin + reportPath });
+    await openPrivateReport(activeJob);
   } catch (error) {
     status.textContent = error.message;
   }
@@ -536,6 +618,7 @@ startButton.disabled = true;
     document.querySelector("#source-field").hidden = false;
     form.elements.source.value = activeTab && isCatalog(activeTab) ? "dom" : "etsy";
   }
+  if (!liveSelected()) form.elements.audience.value = "US cafe owners";
   if (activeTab && isCatalog(activeTab)) {
     const keyword = new URL(activeTab.url).searchParams.get("keyword");
     if (keyword) form.elements.keyword.value = keyword.slice(0, 120);
@@ -556,6 +639,7 @@ startButton.disabled = true;
     owner = saved.glimpseaOwner ?? crypto.randomUUID();
     await chrome.storage.local.set({ glimpseaOwner: owner });
     form.hidden = false;
+    opportunities.hidden = false;
     await updateSource();
   } else {
     throw new Error("Enable the extension on the local Glimpsea server.");
