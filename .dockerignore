@@ -1,0 +1,8 @@
+.git
+.next
+.data
+.env*
+!/.env.example
+node_modules
+*.tsbuildinfo
+release

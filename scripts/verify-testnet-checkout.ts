@@ -17,10 +17,14 @@ const payer = loadAccount(payerFile);
 const other = loadAccount(otherFile);
 assert.notEqual(payer.accountId, other.accountId);
 
-function post(path: string, body: object, token?: string) {
+function post(path: string, body: object, token?: string, guest?: string) {
   return fetch(origin + path, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+    headers: {
+      "Content-Type": "application/json",
+      ...(token && { Authorization: `Bearer ${token}` }),
+      ...(guest && { "X-Glimpsea-Demo": guest }),
+    },
     body: JSON.stringify(body),
   });
 }
@@ -58,37 +62,49 @@ async function login(account: Account) {
 }
 
 const example = { keyword: "cafe owner supplies", audience: "US cafe owners", productionHours: 4, plan: "basic" };
-const call = (action: string, data: object = {}, token?: string) => post("/api/extension-demo", { action, ...data }, token);
+const guest = crypto.randomUUID();
+const call = (action: string, data: object = {}, token?: string) =>
+  post("/api/extension-demo", { action, ...data }, token, guest);
 
-async function finish(id: string, token: string) {
+async function finish(id: string, token?: string) {
   for (const page of [1, 2]) await ok(await call("page", { id, page }, token));
   assert.equal((await ok(await call("analyze", { id }, token))).state, "complete");
 }
 
-assert.equal((await call("trials")).status, 401);
-const first = await login(payer);
-assert.equal((await ok(await call("trials", {}, first.token))).remaining, 2);
-const firstJob = await ok(await call("start", { ...example, access: "trial" }, first.token));
-await finish(firstJob.id, first.token);
-await ok(await post("/api/near-auth", { action: "logout" }, first.token));
-assert.equal((await call("trials", {}, first.token)).status, 401);
-assert.equal((await fetch(`${origin}/reports/${firstJob.id}`, { headers: { Cookie: first.cookie } })).status, 404);
+async function openReport(id: string, token?: string) {
+  const { reportPath } = await ok(await post("/api/extension-demo/session", { id }, token, guest));
+  const response = await fetch(origin + reportPath, { redirect: "manual" });
+  assert.equal(response.status, 303);
+  assert.equal(response.headers.get("Location"), `/reports/${id}`);
+  const cookie = response.headers.get("Set-Cookie")?.split(";")[0];
+  assert.ok(cookie);
+  assert.equal((await fetch(origin + reportPath, { redirect: "manual" })).status, 404);
+  return cookie;
+}
 
-const renewed = await login(payer);
-assert.equal((await ok(await call("trials", {}, renewed.token))).remaining, 1);
+assert.equal((await post("/api/extension-demo", { action: "trials" })).status, 401);
+assert.equal((await ok(await call("trials"))).remaining, 2);
+const firstJob = await ok(await call("start", { ...example, access: "trial" }));
+await finish(firstJob.id);
 const reportUrl = `${origin}/reports/${firstJob.id}`;
 assert.equal((await fetch(reportUrl)).status, 404);
-assert.equal((await fetch(reportUrl, { headers: { Cookie: renewed.cookie } })).status, 200);
+const trialCookie = await openReport(firstJob.id);
+assert.equal((await fetch(reportUrl, { headers: { Cookie: trialCookie } })).status, 200);
+assert.equal((await post("/api/extension-demo/session", { id: firstJob.id }, undefined, crypto.randomUUID())).status, 404);
+assert.equal((await ok(await call("trials"))).remaining, 1);
+
+const secondJob = await ok(await call("start", { ...example, access: "trial" }));
+await finish(secondJob.id);
+assert.equal((await ok(await call("trials"))).remaining, 0);
+assert.equal((await call("start", { ...example, access: "trial" })).status, 402);
+assert.equal((await call("start", { ...example, access: "testnet-payment" })).status, 401);
+const renewed = await login(payer);
+assert.equal((await ok(await call("trials", {}, renewed.token))).remaining, 0);
+assert.equal((await call("start", { ...example, access: "simulated-payment" }, renewed.token)).status, 400);
 const unrelated = await login(other);
 assert.equal((await fetch(reportUrl, { headers: { Cookie: unrelated.cookie } })).status, 404);
-assert.equal((await call("report", { id: firstJob.id }, unrelated.token)).status, 404);
-
-const secondJob = await ok(await call("start", { ...example, access: "trial" }, renewed.token));
-await finish(secondJob.id, renewed.token);
-assert.equal((await ok(await call("trials", {}, renewed.token))).remaining, 0);
-assert.equal((await call("start", { ...example, access: "trial" }, renewed.token)).status, 402);
-assert.equal((await call("start", { ...example, access: "simulated-payment" }, renewed.token)).status, 400);
-console.log("PASS Signed NEAR login, trial quota survives re-login, and reports stay private to their owner.");
+assert.equal((await post("/api/extension-demo", { action: "report", id: firstJob.id }, unrelated.token)).status, 404);
+console.log("PASS Two guest trials, account signing at checkout, private owner reports, and a trial quota that survives login.");
 
 const paid = await ok(await call("start", { ...example, access: "testnet-payment" }, renewed.token));
 assert.equal(paid.state, "awaiting-payment");
@@ -110,7 +126,12 @@ assert.notEqual(another.checkout.amount, paid.checkout.amount);
 assert.equal((await call("pay", { id: another.id, txHash: hash }, renewed.token)).status, 422);
 assert.equal((await call("page", { id: another.id, page: 1 }, renewed.token)).status, 402);
 await finish(paid.id, renewed.token);
-assert.equal((await fetch(`${origin}/reports/${paid.id}`, { headers: { Cookie: renewed.cookie } })).status, 200);
+const paidUrl = `${origin}/reports/${paid.id}`;
+const paidCookie = await openReport(paid.id, renewed.token);
+assert.equal((await fetch(paidUrl, { headers: { Cookie: paidCookie } })).status, 200);
+await ok(await post("/api/near-auth", { action: "logout" }, renewed.token));
+assert.equal((await fetch(paidUrl, { headers: { Cookie: paidCookie } })).status, 404);
+assert.equal((await fetch(reportUrl, { headers: { Cookie: trialCookie } })).status, 200);
 console.log("PASS A real finalized testnet transfer unlocked the third research job. The same receipt could not unlock another order.");
 console.log(`Receipt: https://testnet.nearblocks.io/txns/${hash}`);
 console.log(`Paid report ID: ${paid.id}`);

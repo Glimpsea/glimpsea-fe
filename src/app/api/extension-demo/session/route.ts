@@ -1,13 +1,19 @@
 import { NextResponse } from "next/server";
-import { createReportSession, demoOwner, ExtensionDemoError, issueReportTicket, redeemReportTicket } from "@/lib/extension-demo";
+import { createReportSession, demoOwner, ExtensionDemoError, issueReportTicket, redeemReportTicket, researchOwner } from "@/lib/extension-demo";
+import { nearOwner, requestNearToken, sessionAccount, sessionFingerprint } from "@/lib/near-auth";
 import { nearMode } from "@/lib/near-testnet";
 
 export async function POST(request: Request) {
-  if (nearMode() || process.env.GLIMPSEA_EXTENSION_DEMO !== "1") return new Response(null, { status: 404 });
+  if (!nearMode() && process.env.GLIMPSEA_EXTENSION_DEMO !== "1") return new Response(null, { status: 404 });
   const token = request.headers.get("X-Glimpsea-Demo");
   try {
     const { id } = await request.json();
-    const ticket = issueReportTicket(demoOwner(token), id);
+    const guest = token ? demoOwner(token) : undefined;
+    const bearer = requestNearToken(request);
+    const owner = nearMode() && bearer ? nearOwner(sessionAccount(bearer)) : guest ?? demoOwner(undefined);
+    const reportOwner = researchOwner(owner, guest, id);
+    const fingerprint = reportOwner.startsWith("near:testnet:") ? sessionFingerprint(bearer) : undefined;
+    const ticket = issueReportTicket(reportOwner, id, fingerprint);
     return NextResponse.json({ reportPath: `/api/extension-demo/session?ticket=${ticket}` },
       { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
@@ -17,7 +23,7 @@ export async function POST(request: Request) {
 }
 
 export function GET(request: Request) {
-  if (nearMode() || process.env.GLIMPSEA_EXTENSION_DEMO !== "1") return new Response(null, { status: 404 });
+  if (!nearMode() && process.env.GLIMPSEA_EXTENSION_DEMO !== "1") return new Response(null, { status: 404 });
   const url = new URL(request.url);
   try {
     const grant = redeemReportTicket(url.searchParams.get("ticket"));
@@ -29,6 +35,7 @@ export function GET(request: Request) {
     response.headers.set("Referrer-Policy", "no-referrer");
     response.cookies.set(`glimpsea_report_${grant.job_id}`, createReportSession(grant.owner, grant.job_id), {
       httpOnly: true, sameSite: "lax", path, maxAge: 3600,
+      secure: (process.env.GLIMPSEA_PUBLIC_ORIGIN ?? url.origin).startsWith("https:"),
     });
     return response;
   } catch (error) {

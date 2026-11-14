@@ -154,3 +154,11 @@ button:disabled { cursor: not-allowed; }
   gap: .15rem;
   background: var(--paper);
 }
+
+#wallet-dialog { display: grid; gap: .55rem; }
+#wallet-frame {
+  display: block;
+  width: 100%;
+  height: min(590px, 75vh);
+  border: 0;
+}

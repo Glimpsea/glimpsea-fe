@@ -2,7 +2,7 @@ import DemoClient from "./demo-client";
 import Image from "next/image";
 import { HeaderLogo } from "./header-logo";
 
-const extensionDownload = "https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.1.zip";
+const extensionDownload = "https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.2.zip";
 const liveReceipt = "https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn";
 const extensionGuide = "https://github.com/Glimpsea/glimpsea-fe#test-basic-on-etsy-live-in-opera-gx";
 
@@ -47,7 +47,7 @@ export default function Home() {
         <section className="chrome-install wrap" id="install-extension" aria-labelledby="install-title">
           <div>
             <h2 id="install-title">Install the Glimpsea extension</h2>
-            <p>Use Chrome, Opera GX, or Brave on desktop. Connect a NEAR testnet wallet to run a Basic search in the sample catalog and open your private report.</p>
+            <p>Use Chrome, Opera GX, or Brave on desktop. Try two Basic searches in the sample catalog. Connect a NEAR testnet wallet when you’re ready to pay.</p>
           </div>
           <ol>
             <li><a href={extensionDownload}>Download the ZIP</a> and extract it.</li>

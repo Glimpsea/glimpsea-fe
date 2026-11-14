@@ -15,11 +15,15 @@ const openEtsyButton = document.querySelector("#open-etsy");
 const accessNote = document.querySelector("#access-note");
 const reportScope = document.querySelector("#report-scope");
 const reportButton = document.querySelector("#open-report");
+const paymentReceipt = document.querySelector("#payment-receipt");
 const checkoutButton = document.querySelector("#checkout");
 const connectButton = document.querySelector("#connect-wallet");
 const logoutButton = document.querySelector("#disconnect-wallet");
 const status = document.querySelector("#status");
 const trials = document.querySelector("#trials");
+const walletDialog = document.querySelector("#wallet-dialog");
+const walletFrame = document.querySelector("#wallet-frame");
+const closeWalletButton = document.querySelector("#close-wallet");
 const walletStatus = document.querySelector("#wallet-status");
 const wallet = document.querySelector("#wallet");
 const history = document.querySelector("#history");
@@ -43,6 +47,9 @@ let accountId;
 let mode;
 let working = false;
 let openingOpportunity = false;
+let connectingWallet = false;
+let walletWait;
+let walletView;
 let etsyTabKeyword = "";
 let etsyReadVersion = 0;
 const sampleKeyword = form.elements.keyword.defaultValue;
@@ -87,10 +94,10 @@ function pendingJob() {
 }
 
 function updateControls() {
-  reloadButton.disabled = working || openingOpportunity;
-  options.disabled = working || openingOpportunity || Boolean(pendingJob());
-  startButton.disabled = working || openingOpportunity || (liveSelected() && !pendingJob() && !etsyTabKeyword);
-  opportunityFields.disabled = working || openingOpportunity;
+  reloadButton.disabled = working || openingOpportunity || connectingWallet;
+  options.disabled = working || openingOpportunity || connectingWallet || Boolean(pendingJob());
+  startButton.disabled = working || openingOpportunity || connectingWallet || (liveSelected() && !pendingJob() && !etsyTabKeyword);
+  opportunityFields.disabled = working || openingOpportunity || connectingWallet;
   const custom = opportunityForm.elements.topic.value === "custom";
   const sample = activeJob?.collection === "etsy" && activeJob.state === "complete" ? activeJob : null;
   sellerDetails.hidden = sellerDetails.disabled = !custom;
@@ -100,7 +107,13 @@ function updateControls() {
   opportunitySample.textContent = sample
     ? `Using your Etsy live scan for “${sample.keyword}” · ${sample.audience} · up to ${sample.productionHours} hours.`
     : "Enter your target buyers and available hours below, then run an Etsy live analysis.";
-  logoutButton.disabled = working || openingOpportunity;
+  logoutButton.disabled = working || openingOpportunity || connectingWallet;
+  const awaitingWallet = startButton.textContent === "Resume research";
+  form.noValidate = awaitingWallet;
+  if (!awaitingWallet && mode?.guestTrials) {
+    const paid = form.elements.access.selectedIndex === 1;
+    startButton.textContent = paid ? "Continue to checkout" : activeJob?.state === "complete" ? "Start another search" : "Start analysis";
+  }
   startButton.classList.toggle("secondary", !checkoutButton.hidden || !reportButton.hidden);
 }
 
@@ -306,11 +319,12 @@ function syncAccess() {
   accessNote.textContent = form.elements.access.selectedIndex === 0 ? "Uses 1 Basic trial."
     : mode.nearTestnet ? `From ${startingPrices[plan]} NEAR on testnet. See the exact amount at checkout.`
     : "Simulated payment. No funds move.";
+  updateControls();
 }
 
 async function refresh() {
   const { remaining } = await call("trials");
-  trials.textContent = `${remaining} Basic ${remaining === 1 ? "trial" : "trials"} left${accountId ? " on this NEAR account" : " in this browser"}.`;
+  trials.textContent = `${remaining} Basic ${remaining === 1 ? "trial" : "trials"} left${accountId && !mode.guestTrials ? " on this NEAR account" : " in this browser"}.`;
   form.elements.access.options[0].dataset.empty = remaining === 0 ? "1" : "0";
   syncAccess();
   if (!mode.nearTestnet) return;
@@ -344,15 +358,17 @@ async function refresh() {
 
 async function run(job) {
   activeJob = job;
+  paymentReceipt.hidden = !job.checkout?.txHash;
+  if (job.checkout?.txHash) paymentReceipt.href = `https://testnet.nearblocks.io/txns/${job.checkout.txHash}`;
   if (pendingJob() && mode.etsyLive && job.collection) {
     form.elements.source.value = job.collection;
     await updateSource();
   }
   if (job.listings) showCaptures(job);
   else scanResults.hidden = true;
-  await chrome.storage.local.set({ glimpseaJob: job.id });
+  await chrome.storage.local.set({ glimpseaJob: job.id, glimpseaJobRequiresWallet: Boolean(job.checkout) });
   if (job.state === "awaiting-payment") {
-    status.textContent = "Pay on NEAR testnet before the scan starts. Then return here and select Resume research.";
+    status.textContent = "Pay on NEAR testnet, then select Resume research.";
     checkoutButton.hidden = false;
     startButton.textContent = "Resume research";
     status.scrollIntoView({ block: "nearest" });
@@ -376,7 +392,7 @@ async function run(job) {
     if (job.state === "analyzing") await sleep(1000);
   }
   activeJob = job;
-  await chrome.storage.local.remove("glimpseaJob");
+  await chrome.storage.local.remove(["glimpseaJob", "glimpseaJobRequiresWallet"]);
   startButton.textContent = "Start analysis";
   if (job.state === "failed") {
     throw new Error(job.checkout ? "Research failed after payment. Keep your testnet receipt and order ID."
@@ -402,7 +418,7 @@ async function withProgress(work) {
     await work();
     await refresh();
   } catch (error) {
-    if (error.status === 401 && mode.nearTestnet) {
+    if (error.status === 401 && mode.nearTestnet && token) {
       await resetWallet(false);
     }
     if (error.message.startsWith("No results in the sample catalog")) {
@@ -424,15 +440,14 @@ async function withProgress(work) {
 }
 
 async function showWallet() {
-  wallet.hidden = false;
+  wallet.hidden = mode.guestTrials && !accountId;
   walletStatus.textContent = accountId || "Use a NEAR testnet wallet to run searches and open private reports.";
-  connectButton.hidden = Boolean(accountId);
+  connectButton.hidden = Boolean(accountId) || mode.guestTrials;
   logoutButton.hidden = !accountId;
-  form.hidden = !accountId;
-  opportunities.hidden = !accountId;
+  form.hidden = opportunities.hidden = !accountId && !mode.guestTrials;
   form.elements.access.options[1].textContent = "Pay on NEAR testnet";
   form.elements.access.options[1].value = "testnet-payment";
-  if (accountId) await updateSource();
+  if (accountId || mode.guestTrials) await updateSource();
   else document.querySelector("#demo-note").textContent = mode.etsyLive
     ? "Read Etsy listings and open your private report."
     : "Try Glimpsea with a sample catalog.";
@@ -445,8 +460,10 @@ async function resetWallet(revoke = true) {
   token = undefined;
   accountId = undefined;
   activeJob = undefined;
-  await chrome.storage.local.remove(["glimpseaNearToken", "glimpseaJob", "glimpseaLastReport", "glimpseaNearPair"]);
+  await chrome.storage.local.remove(mode.guestTrials ? ["glimpseaNearToken", "glimpseaNearPair"]
+    : ["glimpseaNearToken", "glimpseaJob", "glimpseaJobRequiresWallet", "glimpseaLastReport", "glimpseaNearPair"]);
   checkoutButton.hidden = true;
+  paymentReceipt.hidden = true;
   reportButton.hidden = true;
   startButton.textContent = "Start analysis";
   scanResults.hidden = true;
@@ -455,8 +472,55 @@ async function resetWallet(revoke = true) {
   historySection.hidden = true;
   opportunities.open = false;
   opportunityStatus.textContent = "";
+  if (walletView) closeWalletView();
   await showWallet();
+  if (mode.guestTrials) {
+    const { glimpseaJobRequiresWallet } = await chrome.storage.local.get("glimpseaJobRequiresWallet");
+    if (glimpseaJobRequiresWallet) showPendingWallet();
+    await refresh();
+  }
 }
+
+function showPendingWallet() {
+  startButton.textContent = "Resume research";
+  checkoutButton.hidden = false;
+  status.textContent = "Connect the wallet used for this order to continue.";
+}
+
+function openWalletView(params) {
+  const url = new URL("/wallet", origin);
+  url.search = new URLSearchParams({ ...params, panel: location.origin });
+  walletView = params;
+  walletDialog.hidden = false;
+  walletFrame.src = url.href;
+  walletDialog.scrollIntoView({ block: "nearest" });
+}
+
+function closeWalletView() {
+  const wait = walletWait;
+  walletWait = undefined;
+  wait?.reject(new Error("Wallet connection canceled. Select checkout to try again."));
+  walletView = undefined;
+  walletDialog.hidden = true;
+  walletFrame.removeAttribute("src");
+}
+
+closeWalletButton.addEventListener("click", closeWalletView);
+window.addEventListener("message", (event) => {
+  if (event.origin !== origin || event.source !== walletFrame.contentWindow || !walletView) return;
+  if (event.data?.type === "glimpsea-wallet-ready" && walletView.checkout && token) {
+    walletFrame.contentWindow.postMessage({ type: "glimpsea-checkout-session", token }, origin);
+  } else if (event.data?.type === "glimpsea-wallet-signed" && event.data.id === walletView.pair) {
+    walletWait?.resolve();
+  } else if (event.data?.type === "glimpsea-payment-verified" && event.data.id === walletView.checkout) {
+    const hash = event.data.hash;
+    if (typeof hash !== "string" || !/^[1-9A-HJ-NP-Za-km-z]{40,48}$/.test(hash)) return;
+    paymentReceipt.href = `https://testnet.nearblocks.io/txns/${hash}`;
+    paymentReceipt.hidden = false;
+    closeWalletView();
+    status.textContent = "Payment verified. Select Resume research.";
+  }
+});
 
 async function finishPair(pair) {
   for (let i = 0; i < 150; i++) {
@@ -478,19 +542,33 @@ async function finishPair(pair) {
 
 async function connectWallet(savedPair) {
   connectButton.disabled = true;
+  connectingWallet = true;
+  updateControls();
   try {
     const pair = savedPair || await auth("pair");
-    if (!savedPair) {
+    if (mode.guestTrials) {
+      status.textContent = "Connect your NEAR testnet wallet to continue to checkout.";
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("Wallet sign-in expired. Try again.")), 300_000);
+        walletWait = {
+          resolve() { clearTimeout(timeout); resolve(); },
+          reject(error) { clearTimeout(timeout); reject(error); },
+        };
+        openWalletView({ pair: pair.id });
+      }).finally(closeWalletView);
+    } else if (!savedPair) {
       await chrome.storage.local.set({ glimpseaNearPair: pair });
       await chrome.tabs.create({ url: `${origin}/wallet?pair=${encodeURIComponent(pair.id)}` });
+      status.textContent = "Finish signing in on the wallet tab.";
     }
-    status.textContent = "Finish signing in on the wallet tab.";
     await finishPair(pair);
   } catch (error) {
     await chrome.storage.local.remove("glimpseaNearPair");
     status.textContent = error.message;
   } finally {
     connectButton.disabled = false;
+    connectingWallet = false;
+    updateControls();
   }
 }
 
@@ -535,7 +613,7 @@ form.elements.source.addEventListener("change", () => {
 });
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (working) return;
+  if (working || connectingWallet) return;
   const input = Object.fromEntries(new FormData(form));
   input.productionHours = Number(input.productionHours);
   if (!input.category) delete input.category;
@@ -544,8 +622,16 @@ form.addEventListener("submit", (event) => {
   const permission = live ? chrome.permissions.request(etsyPermission) : undefined;
   void withProgress(async () => {
     if (permission && !await permission) throw new Error("Allow Etsy access to read the active search results tab.");
-    const { glimpseaJob } = await chrome.storage.local.get("glimpseaJob");
-    if (glimpseaJob) return run(await call("status", { id: glimpseaJob }));
+    const { glimpseaJob, glimpseaJobRequiresWallet } = await chrome.storage.local.get(["glimpseaJob", "glimpseaJobRequiresWallet"]);
+    if (glimpseaJob) {
+      if (mode.guestTrials && glimpseaJobRequiresWallet && !accountId) {
+        await connectWallet();
+        if (!accountId) { checkoutButton.hidden = false; return; }
+      }
+      const job = await call("status", { id: glimpseaJob });
+      if (job.state !== "awaiting-payment" && walletView?.checkout === job.id) closeWalletView();
+      return run(job);
+    }
     const collection = live ? "etsy" : "dom";
     if (collection === "etsy") {
       const { url } = await activeEtsyTab();
@@ -556,16 +642,37 @@ form.addEventListener("submit", (event) => {
       input.keyword = url.searchParams.get("q");
       input.plan = "basic";
     }
+    if (input.access === "testnet-payment" && mode.guestTrials && !accountId) {
+      await connectWallet();
+      if (!accountId) return;
+    }
     await run(await call("start", { ...input, collection }));
+    if (input.access === "testnet-payment" && mode.guestTrials && activeJob?.state === "awaiting-payment") {
+      openWalletView({ checkout: activeJob.id });
+    }
   });
 });
 
 checkoutButton.addEventListener("click", () => {
-  if (activeJob) void chrome.tabs.create({ url: `${origin}/wallet?checkout=${encodeURIComponent(activeJob.id)}` });
+  if (!activeJob && mode.guestTrials) {
+    void withProgress(async () => {
+      const { glimpseaJob } = await chrome.storage.local.get("glimpseaJob");
+      if (!glimpseaJob) return;
+      await connectWallet();
+      if (!accountId) { checkoutButton.hidden = false; return; }
+      const job = await call("status", { id: glimpseaJob });
+      await run(job);
+      if (job.state === "awaiting-payment") openWalletView({ checkout: job.id });
+    });
+    return;
+  }
+  if (!activeJob) return;
+  if (mode.guestTrials) openWalletView({ checkout: activeJob.id });
+  else void chrome.tabs.create({ url: `${origin}/wallet?checkout=${encodeURIComponent(activeJob.id)}` });
 });
 
 async function openPrivateReport(job) {
-  const { reportPath } = mode.nearTestnet ? job : await call("open", { id: job.id }, "/session");
+  const { reportPath } = mode.nearTestnet && !mode.guestTrials ? job : await call("open", { id: job.id }, "/session");
   await chrome.tabs.create({ url: origin + reportPath });
 }
 
@@ -578,12 +685,8 @@ async function withOpportunityProgress(work, message = "Opening your brief…") 
     await work();
     opportunityStatus.textContent = "Private brief opened in a new tab.";
   } catch (error) {
-    if (error.status === 401 && mode.nearTestnet) {
-      await resetWallet(false);
-      status.textContent = "Connect your wallet again to open a private brief.";
-    } else {
-      opportunityStatus.textContent = error.message;
-    }
+    if (error.status === 401 && mode.nearTestnet && token) await resetWallet(false);
+    opportunityStatus.textContent = error.message;
   } finally {
     openingOpportunity = false;
     updateControls();
@@ -627,7 +730,7 @@ reportButton.addEventListener("click", async () => {
 
 startButton.disabled = true;
 (async () => {
-  const saved = await chrome.storage.local.get(["glimpseaOwner", "glimpseaJob", "glimpseaLastReport", "glimpseaNearToken", "glimpseaNearPair"]);
+  const saved = await chrome.storage.local.get(["glimpseaOwner", "glimpseaJob", "glimpseaJobRequiresWallet", "glimpseaLastReport", "glimpseaNearToken", "glimpseaNearPair"]);
   const configuration = await fetch(`${origin}/api/extension-demo`, { cache: "no-store" });
   if (!configuration.ok) throw new Error("Glimpsea configuration is unavailable.");
   mode = await configuration.json();
@@ -644,6 +747,10 @@ startButton.disabled = true;
     const keyword = new URL(activeTab.url).searchParams.get("keyword");
     if (keyword) form.elements.keyword.value = keyword.slice(0, 120);
   }
+  if (mode.guestTrials || !mode.nearTestnet && mode.simulation) {
+    owner = saved.glimpseaOwner ?? crypto.randomUUID();
+    if (!saved.glimpseaOwner) await chrome.storage.local.set({ glimpseaOwner: owner });
+  }
   if (mode.nearTestnet) {
     token = saved.glimpseaNearToken;
     if (token) {
@@ -651,19 +758,22 @@ startButton.disabled = true;
       catch (error) { if (error.status !== 401) throw error; await resetWallet(false); }
     }
     await showWallet();
-    if (!accountId) {
+    if (!accountId && !mode.guestTrials) {
       if (saved.glimpseaNearPair) await connectWallet(saved.glimpseaNearPair);
       else status.textContent = "";
       return;
     }
   } else if (mode.simulation) {
-    owner = saved.glimpseaOwner ?? crypto.randomUUID();
-    await chrome.storage.local.set({ glimpseaOwner: owner });
     form.hidden = false;
     opportunities.hidden = false;
     await updateSource();
   } else {
     throw new Error("This Glimpsea server is not accepting research requests.");
+  }
+  if (saved.glimpseaJob && mode.guestTrials && saved.glimpseaJobRequiresWallet && !accountId) {
+    await refresh();
+    showPendingWallet();
+    return;
   }
   if (saved.glimpseaJob) {
     const job = await call("status", { id: saved.glimpseaJob }).catch((error) => {
@@ -674,12 +784,16 @@ startButton.disabled = true;
       await withProgress(() => run(job));
       return;
     }
-    await chrome.storage.local.remove("glimpseaJob");
+    await chrome.storage.local.remove(["glimpseaJob", "glimpseaJobRequiresWallet"]);
   }
   await refresh();
   showReadyStatus();
   if (saved.glimpseaLastReport) {
     activeJob = await call("status", { id: saved.glimpseaLastReport }).catch(() => undefined);
+    if (activeJob?.checkout?.txHash) {
+      paymentReceipt.href = `https://testnet.nearblocks.io/txns/${activeJob.checkout.txHash}`;
+      paymentReceipt.hidden = false;
+    }
     reportButton.hidden = activeJob?.state !== "complete";
     if (!reportButton.hidden) {
       startButton.textContent = "Start another search";

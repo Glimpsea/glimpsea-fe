@@ -12,8 +12,8 @@ export default async function ReportPage({ params }: { params: Promise<{ id: str
   const jar = await cookies();
   let markdown;
   try {
-    const owner = nearMode() ? nearOwner(sessionAccount(jar.get(nearSessionCookie)?.value))
-      : reportSessionOwner(jar.get(`glimpsea_report_${id}`)?.value, id);
+    const reportOwner = reportSessionOwner(jar.get(`glimpsea_report_${id}`)?.value, id);
+    const owner = reportOwner ?? (nearMode() ? nearOwner(sessionAccount(jar.get(nearSessionCookie)?.value)) : undefined);
     if (!owner) notFound();
     markdown = demoReport(owner, id);
   } catch (error) {

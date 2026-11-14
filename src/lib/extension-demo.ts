@@ -5,6 +5,7 @@ import { db } from "./orders";
 import { research } from "./research";
 import { renderEtsyBrief } from "./etsy-brief";
 import { ExtensionDemoError } from "./extension-errors";
+import { accountForSessionFingerprint, nearOwner } from "./near-auth";
 import { checkoutReceiver, verifyTestnetTransfer } from "./near-testnet";
 import { opportunitySnapshotDate, opportunityTopic, readOpportunityInput, renderNewOpportunityBrief, renderOpportunityBrief } from "./opportunity-brief";
 
@@ -69,7 +70,7 @@ export function trialsRemaining(owner: string) {
   return Math.max(0, 2 - row.used);
 }
 
-export function startDemo(owner: string, input: Record<string, unknown>, nearAccount?: string) {
+export function startDemo(owner: string, input: Record<string, unknown>, nearAccount?: string, nearTestnet = Boolean(nearAccount)) {
   const { keyword, plan, access, category, productionHours, audience } = input;
   if (typeof keyword !== "string" || !keyword.trim() || keyword.length > 120
       || typeof audience !== "string" || !audience.trim() || audience.length > 180
@@ -123,10 +124,17 @@ export function startDemo(owner: string, input: Record<string, unknown>, nearAcc
       SELECT count(*) FROM extension_demo_jobs WHERE owner = ? AND access = 'trial' AND state != 'failed'
     ) < 2
   `).run(id, owner, plan, trialAccess, keyword.trim(), JSON.stringify(order), trialAccess, owner);
-  if (result.changes === 0) throw new ExtensionDemoError(nearAccount
+  if (result.changes === 0) throw new ExtensionDemoError(nearTestnet
     ? "Both Basic trials are used. Pay on NEAR testnet to start another research job."
     : "Both demo trials are used. Choose simulated payment.", 402);
   return demoJob(owner, id);
+}
+
+export function researchOwner(owner: string, guest: string | undefined, id: unknown) {
+  if (!guest || owner === guest || typeof id !== "string") return owner;
+  const job = database().prepare("SELECT owner FROM extension_demo_jobs WHERE id = ? AND owner IN (?, ?)")
+    .get(id, owner, guest) as { owner: string } | undefined;
+  return job?.owner ?? owner;
 }
 
 function readJob(owner: string, id: unknown): Job {
@@ -201,10 +209,10 @@ export function demoJob(owner: string, id: unknown) {
   };
 }
 
-export function listDemoJobs(owner: string) {
+export function listDemoJobs(owner: string, guest = owner) {
   const jobs = database().prepare(`
-    SELECT id, keyword, plan, state, access FROM extension_demo_jobs WHERE owner = ? ORDER BY rowid DESC LIMIT 20
-  `).all(owner) as Pick<Job, "id" | "keyword" | "plan" | "state" | "access">[];
+    SELECT id, keyword, plan, state, access FROM extension_demo_jobs WHERE owner IN (?, ?) ORDER BY rowid DESC LIMIT 20
+  `).all(owner, guest) as Pick<Job, "id" | "keyword" | "plan" | "state" | "access">[];
   return { jobs };
 }
 
@@ -240,7 +248,8 @@ export async function payDemo(owner: string, account: string, id: unknown, hash:
 
 function readCapture(input: unknown, job: Job, page: number): Capture {
   const { listings, nextUrl, page: capturedPage } = (input ?? {}) as { listings?: unknown; nextUrl?: unknown; page?: unknown };
-  const next = `http://127.0.0.1:3045${catalogPath(job.keyword, page + 1)}`;
+  const catalogOrigin = process.env.GLIMPSEA_PUBLIC_ORIGIN ?? "http://127.0.0.1:3045";
+  const next = new URL(catalogPath(job.keyword, page + 1), catalogOrigin).href;
   if (capturedPage !== page || (nextUrl !== null && nextUrl !== next) || !Array.isArray(listings)
       || listings.length === 0 || listings.length > 3) {
     throw new ExtensionDemoError("Read this page from the demo catalog before continuing.");
@@ -252,7 +261,10 @@ function readCapture(input: unknown, job: Job, page: number): Capture {
         || typeof listing.url !== "string") {
       throw new ExtensionDemoError("The demo page returned an invalid listing.");
     }
-    const routeId = /^http:\/\/127\.0\.0\.1:3045\/demo-catalog\/listing\/(\d+|(?:digital|pod|personalized)-\d+)$/.exec(listing.url)?.[1];
+    const url = URL.parse(listing.url);
+    const routeId = url?.origin === catalogOrigin
+      ? /^\/demo-catalog\/listing\/(\d+|(?:digital|pod|personalized)-\d+)$/.exec(url.pathname)?.[1]
+      : undefined;
     const fixture = routeId && demoListing(routeId);
     if (!fixture || fixture.category !== listing.category
         || (listing.listingId !== undefined && listing.listingId !== fixture.listingId)) {
@@ -260,7 +272,7 @@ function readCapture(input: unknown, job: Job, page: number): Capture {
     }
     if (!unique.has(fixture.listingId)) {
       unique.set(fixture.listingId, { listingId: fixture.listingId, title: listing.title, price: listing.price,
-        url: `http://127.0.0.1:3045/demo-catalog/listing/${fixture.listingId}`, category: fixture.category });
+        url: new URL(`/demo-catalog/listing/${fixture.listingId}`, catalogOrigin).href, category: fixture.category });
     }
   }
   return { page, listings: Array.from(unique.values()), hasNext: nextUrl !== null };
@@ -402,13 +414,13 @@ export function demoReport(owner: string, id: string) {
   return job.markdown;
 }
 
-export function issueReportTicket(owner: string, id: string) {
+export function issueReportTicket(owner: string, id: string, fingerprint?: string) {
   demoReport(owner, id);
   const ticket = randomUUID();
   const connection = database();
   connection.prepare("DELETE FROM extension_demo_tickets WHERE expires_at <= ?").run(Date.now());
   connection.prepare("INSERT INTO extension_demo_tickets VALUES (?, ?, ?, ?)")
-    .run(demoOwner(ticket), id, owner, Date.now() + 60_000);
+    .run(demoOwner(ticket), id, fingerprint ? `${owner}|${fingerprint}` : owner, Date.now() + 60_000);
   return ticket;
 }
 
@@ -437,8 +449,14 @@ export function createReportSession(owner: string, id: string) {
 }
 
 export function reportSessionOwner(token: string | undefined, id: string) {
-  const [owner, expiry, signature, extra] = token?.split(".") ?? [];
-  if (extra !== undefined || !/^[0-9a-f]{64}$/.test(owner) || !/^\d{13}$/.test(expiry)
-      || Number(expiry) <= Date.now() || !/^[0-9a-f]{64}$/.test(signature)) return;
-  if (timingSafeEqual(Buffer.from(signature, "hex"), reportSignature(owner, id, expiry))) return owner;
+  const match = /^(?<grant>[a-z0-9:._|-]+)\.(?<expiry>\d{13})\.(?<signature>[0-9a-f]{64})$/.exec(token ?? "");
+  if (!match?.groups) return;
+  const { grant, expiry, signature } = match.groups;
+  if (Number(expiry) <= Date.now()
+      || !timingSafeEqual(Buffer.from(signature, "hex"), reportSignature(grant, id, expiry))) return;
+  if (/^[0-9a-f]{64}$/.test(grant)) return grant;
+  const [owner, fingerprint] = grant.split("|");
+  if (!/^[0-9a-f]{64}$/.test(fingerprint ?? "")) return;
+  const account = accountForSessionFingerprint(fingerprint);
+  if (account && nearOwner(account) === owner) return owner;
 }

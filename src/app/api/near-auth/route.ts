@@ -6,7 +6,7 @@ import { ExtensionDemoError } from "@/lib/extension-errors";
 
 export async function POST(request: Request) {
   if (!nearMode()) return new Response(null, { status: 404 });
-  const origin = new URL(request.url).origin;
+  const origin = process.env.GLIMPSEA_PUBLIC_ORIGIN ?? new URL(request.url).origin;
   try {
     const input = await request.json();
     let result;

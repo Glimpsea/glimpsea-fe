@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { NearConnector } from "@hot-labs/near-connect";
 
 let connector: NearConnector | undefined;
@@ -16,8 +16,12 @@ async function walletConnector() {
   return connector;
 }
 
-async function api<T>(path: string, body: object): Promise<T> {
-  const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+async function api<T>(path: string, body: object, token?: string): Promise<T> {
+  const response = await fetch(path, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(token && { Authorization: `Bearer ${token}` }) },
+    body: JSON.stringify(body),
+  });
   const result = await response.json();
   if (!response.ok) throw new Error(result.error ?? "Try again from the side panel.");
   return result;
@@ -36,8 +40,13 @@ type CheckoutJob = {
 
 const auth = "/api/near-auth";
 const research = "/api/extension-demo";
+const subscribeToNothing = () => () => {};
+const clientReady = () => true;
+const serverReady = () => false;
 
-export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: string }) {
+export function WalletFlow({ pair, checkout, panelOrigin }: { pair?: string; checkout?: string; panelOrigin?: string }) {
+  const [session, setSession] = useState<string>();
+  const hydrated = useSyncExternalStore(subscribeToNothing, clientReady, serverReady);
   const [message, setMessage] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
@@ -48,11 +57,24 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
   const storageKey = `glimpsea-testnet-tx:${checkout}`;
 
   useEffect(() => {
-    if (!checkout) return;
+    if (!checkout || !panelOrigin) return;
+    function receive(event: MessageEvent) {
+      if (event.origin === panelOrigin && event.source === window.parent && event.data?.type === "glimpsea-checkout-session"
+          && typeof event.data.token === "string" && /^[A-Za-z0-9_-]{43}$/.test(event.data.token)) {
+        setSession(event.data.token);
+      }
+    }
+    window.addEventListener("message", receive);
+    window.parent.postMessage({ type: "glimpsea-wallet-ready" }, panelOrigin);
+    return () => window.removeEventListener("message", receive);
+  }, [checkout, panelOrigin]);
+
+  useEffect(() => {
+    if (!checkout || panelOrigin && !session) return;
     let current = true;
     Promise.all([
-      api<{ accountId: string }>(auth, { action: "account" }),
-      api<CheckoutJob>(research, { action: "status", id: checkout }),
+      api<{ accountId: string }>(auth, { action: "account" }, session),
+      api<CheckoutJob>(research, { action: "status", id: checkout }, session),
     ]).then(([{ accountId }, job]) => {
       if (!current) return;
       if (!job.checkout) throw new Error("This order does not have a testnet checkout.");
@@ -63,7 +85,7 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
       setDone(Boolean(job.checkout.txHash));
     }).catch((error: Error) => { if (current) setMessage(error.message); });
     return () => { current = false; };
-  }, [checkout, storageKey]);
+  }, [checkout, panelOrigin, session, storageKey]);
 
   async function connect() {
     if (!pair) {
@@ -80,8 +102,9 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
     });
     const result = await api<{ accountId: string }>(auth, { action: "verify", id: pair, ...signed });
     setAccount(result.accountId);
-    setMessage("Wallet connected. Return to the Glimpsea side panel.");
+    setMessage(panelOrigin ? "Wallet connected." : "Wallet connected. Return to the Glimpsea side panel.");
     setDone(true);
+    if (panelOrigin) window.parent.postMessage({ type: "glimpsea-wallet-signed", id: pair }, panelOrigin);
   }
 
   async function pay() {
@@ -103,9 +126,10 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
       sessionStorage.setItem(storageKey, hash);
       setTxHash(hash);
     }
-    await api(research, { action: "pay", id: checkout, txHash: hash.trim() });
+    await api(research, { action: "pay", id: checkout, txHash: hash.trim() }, session);
     setMessage("");
     setDone(true);
+    if (panelOrigin) window.parent.postMessage({ type: "glimpsea-payment-verified", id: checkout, hash: hash.trim() }, panelOrigin);
   }
 
   async function act() {
@@ -123,7 +147,7 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
 
   return (
     <div className="mt-5 grid max-w-xl gap-4">
-      <p>{checkout ? "Pay with testnet NEAR to unlock this research order." : "Sign a message to link your trial quota and reports to your NEAR testnet account."}</p>
+      <p>{checkout ? "Pay with testnet NEAR to unlock this research order." : panelOrigin ? "Sign a message to verify the wallet you want to pay from." : "Sign a message to connect your NEAR testnet wallet."}</p>
       {account && <p className="break-all">{account}</p>}
       {checkout && quote && (
         <>
@@ -135,14 +159,14 @@ export function WalletFlow({ pair, checkout }: { pair?: string; checkout?: strin
         </>
       )}
       {!done && (!checkout || quote) && (
-        <button className="run-button w-fit" type="button" onClick={act} disabled={busy}>
+        <button className="run-button w-fit" type="button" onClick={act} disabled={!hydrated || busy}>
           {busy ? "Waiting for wallet or verification…" : checkout ? txHash ? "Verify payment" : "Pay with testnet NEAR" : "Connect wallet"}
         </button>
       )}
       {done && checkout && txHash && (
         <>
-          <p role="status">Payment verified. {etsy ? "Return to your Etsy search tab" : "Return to the Glimpsea side panel"} and select <strong>Resume research</strong>.</p>
-          <a className="underline" href={`https://testnet.nearblocks.io/txns/${encodeURIComponent(txHash)}`}>View testnet receipt</a>
+          <p role="status">Payment verified. {panelOrigin ? "Select" : etsy ? "Return to your Etsy search tab and select" : "Return to the Glimpsea side panel and select"} <strong>Resume research</strong>.</p>
+          <a className="underline" target="_blank" rel="noreferrer" href={`https://testnet.nearblocks.io/txns/${encodeURIComponent(txHash)}`}>View testnet receipt</a>
         </>
       )}
       <p role="status">{message}</p>

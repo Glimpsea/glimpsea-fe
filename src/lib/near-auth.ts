@@ -100,12 +100,20 @@ export function redeemPair(id: unknown, pairSecret: unknown) {
   return { token: row.browser_session, accountId: sessionAccount(row.browser_session) };
 }
 
-export function sessionAccount(token: unknown) {
+export function sessionFingerprint(token: unknown) {
   if (!isToken(token)) throw new ExtensionDemoError("Connect a NEAR testnet wallet first.", 401);
-  const row = database().prepare("SELECT account FROM near_extension_sessions WHERE token_hash = ? AND expires_at > ?")
-    .get(digest(token), Date.now()) as { account: string } | undefined;
-  if (!row) throw new ExtensionDemoError("Your wallet session expired. Connect again.", 401);
-  return row.account;
+  return digest(token);
+}
+
+export function accountForSessionFingerprint(fingerprint: string) {
+  return (database().prepare("SELECT account FROM near_extension_sessions WHERE token_hash = ? AND expires_at > ?")
+    .get(fingerprint, Date.now()) as { account: string } | undefined)?.account;
+}
+
+export function sessionAccount(token: unknown) {
+  const account = accountForSessionFingerprint(sessionFingerprint(token));
+  if (!account) throw new ExtensionDemoError("Your wallet session expired. Connect again.", 401);
+  return account;
 }
 
 export function revokeSession(token: unknown) {

@@ -22,9 +22,14 @@
       <button id="connect-wallet" type="button" hidden>Connect NEAR testnet wallet</button>
       <button id="disconnect-wallet" class="secondary" type="button" hidden>Disconnect wallet</button>
     </div>
+    <section id="wallet-dialog" class="panel-surface" aria-label="NEAR testnet wallet" hidden>
+      <button id="close-wallet" class="secondary" type="button">Close wallet</button>
+      <iframe id="wallet-frame" title="NEAR testnet wallet"></iframe>
+    </section>
     <div class="research-status">
       <p role="status" id="status">Connecting to Glimpsea…</p>
       <button id="checkout" type="button" hidden>Open testnet checkout</button>
+      <a id="payment-receipt" target="_blank" rel="noreferrer" hidden>View testnet receipt</a>
       <button id="open-report" type="button" hidden>Open your report</button>
     </div>
     <form id="research" class="panel-surface" aria-labelledby="research-heading" hidden>

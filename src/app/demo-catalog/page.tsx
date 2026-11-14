@@ -33,7 +33,7 @@ export default async function DemoCatalog({ searchParams }: {
         </form>
       </header>
       <section aria-labelledby="search-results" className="mx-auto max-w-5xl pt-6">
-        <p className="text-sm">Local simulation · Synthetic listings and prices</p>
+        <p className="text-sm">Sample catalog · Synthetic listings and prices</p>
         <h1 id="search-results" className="mt-2 font-serif text-4xl">Results for “{keyword}”</h1>
         <p className="mb-4 mt-2 text-sm">Page {page} · Sorted by relevance</p>
         <ul aria-label="Search results" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

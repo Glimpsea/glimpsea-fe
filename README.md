@@ -6,12 +6,12 @@ The demo compares a digital download, a print-on-demand product, and a personali
 
 ## Install the Glimpsea extension
 
-1. [Download the Glimpsea extension ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.1.zip) and extract it.
+1. [Download the Glimpsea extension ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.2.zip) and extract it.
 2. On desktop, open `chrome://extensions` in Chrome, `opera://extensions` in Opera GX, or `brave://extensions` in Brave. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the extracted `glimpsea` folder.
 4. Open **Glimpsea Research** from your browser’s extensions menu.
 
-The extension connects to Glimpsea on Dalang and uses a sample catalog. Connect a NEAR testnet wallet to use the two Basic trials, pay for more research, and open private reports. Select **Reload** in the panel to refresh it without signing out.
+The hosted v0.1.1 ZIP connects to Glimpsea on Dalang and uses a sample catalog. Select **Connect NEAR testnet wallet**, keep the preset `cafe owner supplies` and **Basic**, and select **Start analysis**. The panel shows two pages read and four unique listings. Select **Open your report** to see the results. Use **Reload** to refresh the panel without signing out. Version 0.1.2 starts with two Basic trials per browser profile. The wallet is needed when you choose to pay.
 
 ## Run the extension locally
 
@@ -31,7 +31,7 @@ Install Chrome, Node.js 22.22.2 or later, and Bun.
 
 ## Find product opportunities
 
-In the side panel, sign in if wallet mode is enabled. Expand **Find product opportunities**, choose **Cafe operations** or **Small events and micro weddings**, and select **Open private brief**. In wallet mode, you can reopen each brief from your research history.
+In the side panel, expand **Find product opportunities**, choose **Cafe operations** or **Small events and micro weddings**, and select **Open private brief**. In wallet mode, you can reopen each brief from your research history.
 
 The pilot compares 15 candidates from the Etsy Marketplace Insights snapshot recorded November 14, 2026. It labels direct lookups, related terms, and missing data. The two briefs show a decision and a small product test. Opening a brief uses the saved snapshot and does not consume a Basic trial.
 
@@ -45,13 +45,13 @@ In Opera GX, a NEAR testnet account used a Basic trial to search Etsy live for `
 
 ## Testnet wallet and checkout
 
-1. In the side panel, select **Connect NEAR testnet wallet**. Choose a wallet and sign the login message in the new tab.
-2. Return to the side panel. Keep the sample keyword, US cafe owners, and four-hour limit in fixture mode.
-3. Choose **Basic** and **Use one Basic trial**. Start research and open the private report. Run a second Basic trial.
-4. With zero trials left, select **Pay on NEAR testnet** and start a third order. Select **Open testnet checkout** and approve the quoted transfer in your wallet.
-5. After Glimpsea verifies the transfer, select **Resume research** in the side panel. Open the report when it is ready.
+1. Open the side panel. Keep the sample keyword, US cafe owners, and four-hour limit in fixture mode.
+2. Choose **Basic** and **Use one Basic trial**. Start research and open the private report. Run a second Basic trial.
+3. Select **Pay on NEAR testnet** and start an order. Choose a wallet from the panel when prompted. The wallet may open its own approval window.
+4. Review the quote and approve the transfer. The order stays locked until Glimpsea verifies the exact finalized transfer.
+5. Select **Resume research** in the side panel. Open the report when it is ready.
 
-Each NEAR account gets two Basic trials. Signing in again keeps the same quota and report history. Only the signed-in owner can open a private report. The third job stays locked until the server verifies a final transfer from that account for the exact quote.
+The two Basic trials and their private reports belong to this browser profile. The panel keeps the wallet session for later payments until it expires or you disconnect. Paid orders and reports belong to the NEAR testnet account that paid.
 
 Basic, Medium, and Deep scan up to 2, 5, and 10 pages. Their testnet prices start at 0.01, 0.03, and 0.06 NEAR. Each quote adds a small unique amount. If your wallet redirects after payment, paste the transaction hash in checkout. The same hash can confirm the same order again.
 
@@ -153,6 +153,7 @@ The brief picked the **shift checklist** for the first test. The sample contains
 
 ### Paid Basic checkout results
 
+- **Hosted extension v0.1.2.** Downloaded from [the live landing page](https://glimpsea.vercel.app/) and installed in a fresh Chromium profile. Both Basic trials and the trial report worked without a wallet. The wallet picker and checkout stayed in the side panel. The third job stayed at zero pages until the panel verified **0.010000495322186445 NEAR testnet**. After **Resume research**, it read **4 unique listings from 2 pages of Glimpsea’s synthetic sample catalog**. A fresh browser session could not open either report, and disconnecting the wallet revoked access to the paid report. [v0.1.2 testnet receipt](https://testnet.nearblocks.io/txns/9MLaeEJDTe1kMHDCZ3JbQRG5dboVFSB11xvNtr76WjMr)
 - **Hosted Chrome beta from Vercel.** Starting at [the live landing page](https://glimpsea.vercel.app/), a fresh NEAR testnet account used both Basic trials. The third order stayed at zero pages until checkout verified a transfer of **0.010000264068962464 NEAR**. After **Resume research**, the beta read **4 unique listings from 2 pages of Glimpsea’s synthetic sample catalog**. [Hosted checkout receipt](https://testnet.nearblocks.io/txns/J8qfg44W2EAVJKYGqff1YbspyLoipMxoNtZrpL7XEnuY)
 - **Live Etsy in Opera GX.** A test account paid **0.010000925400199157 NEAR** on testnet to research `cafe owner supplies`. The order recorded zero pages before payment verification. After **Resume research**, Basic saved **115 unique live listings from 2 pages** and stopped before page 3. [Live Etsy checkout receipt](https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn)
 - **Checkout retest with simulated pages in Chromium.** The revised panel used a new NEAR testnet transfer and verified its transaction hash before scanning. After **Resume research**, Basic saved **3 unique sample listings from 2 simulated Etsy pages**. [Simulated-pages checkout receipt](https://testnet.nearblocks.io/txns/GQyvdPtdMoVTEncaKUKHXSFB4UrrCDS27eN4Wezw97FT)
