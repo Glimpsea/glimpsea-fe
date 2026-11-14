@@ -41,23 +41,27 @@ In the current source, type any keyword in **Etsy keyword** or use the keyword f
 2. Under **Research history**, select the keyword marked **Report ready**.
 3. Select **Open your report**. Glimpsea opens the private report with its saved listings and prices. This uses the existing order without a new scan, trial, or payment.
 
-## Find product opportunities
+## Product recommendations
 
-In the side panel, expand **Find product opportunities**, choose **Cafe operations** or **Small events and micro weddings**, and select **Open private brief**. In wallet mode, you can reopen each brief from your research history.
+With NEAR AI Cloud configured, the private Etsy report opens with one idea to test first. **See the test plan** jumps to the buyer test, price test, and checks to run before publishing. **Compare all 3 ideas** jumps to the idea cards. The first card is open, and the other two expand for more detail. The ease score combines mockup time, setup cost, and available evidence. New Year searches include a suggested schedule.
 
-With NEAR AI Cloud configured, the Etsy report shows three ideas under **Products to test**. Glimpsea uses the search keyword, target buyer, time limit, and product formats found in the scan. Before you start a search, expand **Set product limits** to add a product type, a setup budget in USD, or what you can make. These fields are optional. Each card tells you what to make and gives one buyer test. The fit score uses time, setup cost, and available evidence. If the top ideas tie, the report gives them the same rank.
+Before scanning, use **Set product limits** to add a product type, a setup budget in USD, or what you can make. These fields are optional. If an older report has saved listings and no cards, select **Generate product ideas** to use the existing scan.
 
-Select **See why** to open the product details. **Listings and displayed prices** contains the saved scan and a CSV download. If an older report has saved listings and no cards, select **Generate product ideas**. This uses the existing report without a new scan, trial, or payment.
+### Run a validation search
 
-The report shows searches per 1,000 results when the saved snapshot has direct figures for that keyword. It uses this ratio first when all ideas are in the same category and have direct figures. For New Year searches, the report shows the event date and a suggested date to publish digital products. The price appendix groups digital and physical items by signals in their titles. It keeps the original displayed prices and gives USD estimates using the dated ECB reference rates shown in the report.
+1. In an idea card, select **Run validation search** to open Etsy with the idea’s exact keyword. Expand an alternative card to find its button.
+2. Open Glimpsea on that Etsy tab and start a new Basic scan with the same browser profile for a trial report or the same NEAR account for a paid report. The new scan uses a trial or a payment.
+3. When the scan is ready, reload the original report. The card shows the latest completed follow-up scan for that keyword and owner, with listing examples and median displayed prices in USD where available.
 
-The pilot uses one Etsy Marketplace Insights snapshot recorded on November 14, 2026 for October 14 through November 12, 2026. Of the 15 candidate keywords, five were checked directly, six appeared as related terms, and four had missing data. The snapshot covers 30 days. Weekly growth rates, opportunity scores, and production deadlines need more evidence. Opening a pilot brief uses the saved snapshot and does not consume a Basic trial.
+The follow-up scan shows listings and prices for the idea’s keyword. Use Etsy Marketplace Insights for search counts and the buyer test to check interest.
 
-To research a new topic, enter your target buyers and available hours before starting a Basic **Etsy live search**. After the scan, choose **My own topic** under **Find product opportunities**. Add your skills, setup budget, and an optional topic, then select **Generate private brief**. The scan and brief share the target buyers and hours you entered for the scan. With `NEAR_AI_API_KEY` configured on the server, NEAR AI Cloud uses these inputs and the search keyword to propose three to five ideas. Glimpsea checks their exact keywords against the saved Marketplace Insights snapshot. It flags missing and related-term evidence and links to the Etsy scan for listing and price comparisons. The scan uses the usual trial or checkout.
+**What the scan shows** groups the original listings by title signals and gives USD estimates using the dated ECB reference rates. The footer has **Show all listings**, **Download CSV** for the original displayed prices, and **How the score works**.
+
+The report can also use a saved Etsy Marketplace Insights snapshot. The November 14, 2026 snapshot covers October 14 through November 12, 2026. Of the 15 candidate keywords, five were checked directly, six appeared as related terms, and four had missing data. The snapshot covers 30 days. Weekly growth rates, opportunity scores, and production deadlines need more evidence. Opening a pilot brief uses the saved snapshot and does not consume a Basic trial.
+
+### Earlier pilot tests
 
 In Opera GX, a NEAR testnet account used one Basic trial for `dog daycare report card`. Glimpsea read 111 unique listings from two live Etsy pages. Both private reports showed the same seller input, **Independent dog daycare owners in the US**, with a four-hour limit. NEAR AI Cloud returned three ideas. The brief flagged all three keywords as missing from the saved Marketplace Insights snapshot and deferred ranking. Both reports returned HTTP 404 without a session.
-
-If you already have Etsy keywords, enter three to five exact terms in **Etsy keywords to compare**. Glimpsea flags ideas over your time or setup budget and ideas that still need a cost quote. When at least two options in the same category fit and have direct Marketplace Insights figures, Glimpsea can suggest which mockup to try first based on estimated work time and setup cost. Verify that the keyword results match the proposed product before testing it with buyers.
 
 In Opera GX, a NEAR testnet account used a Basic trial to search Etsy live for `wedding day timeline template`. Glimpsea read 111 unique listings from two pages. The private brief matched all three keywords to direct figures in the saved Marketplace Insights snapshot. It suggested testing a one-page wedding timeline first. The seller estimated one hour and $0 in setup costs with existing tools. Both the brief and the scan report returned HTTP 404 without a session.
 

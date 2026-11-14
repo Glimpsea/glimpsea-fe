@@ -1,6 +1,6 @@
 import type { DemoListingCapture } from "./demo-catalog";
 
-export const ecbRateSource = "https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/index.en.html";
+export const ecbRateSource = "https://www.ecb.europa.eu/stats/shared/pdf/eurofxref.pdf?22ec6595661acacf892397a01d1e4acc=";
 export const ecbRateDate = "Nov 13, 2026";
 // Historical ECB rates expressed as units per euro. Keep the date with the estimate.
 const euroRates: Record<string, number> = { EUR: 1, USD: 1.1052, IDR: 20163.71, GBP: .83559, CAD: 1.5758, AUD: 1.6288 };
@@ -14,17 +14,27 @@ export function perThousandSearchResults(searches: string, results: string) {
 }
 
 export function seasonalPlan(keyword: string, now = new Date()) {
-  const match = /\bnew[ -]?year(?:['’]s)?\b/i.test(keyword);
-  if (!match) return null;
+  if (!/\bnew[ -]?year(?:['’]s)?\b/i.test(keyword)) return null;
   const explicitYear = keyword.match(/\b20\d{2}\b/)?.[0];
-  const year = explicitYear ? Number(explicitYear) : now.getUTCFullYear() + 1;
-  const event = new Date(Date.UTC(year, 0, 1));
-  if (event <= now) return null;
-  const target = new Date(Date.UTC(year - 1, 11, 15));
-  const date = (value: Date) => new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(value);
+  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+  const eventTime = Date.UTC(explicitYear ? Number(explicitYear) : now.getUTCFullYear() + 1, 0, 1);
+  const day = 86_400_000;
+  const daysLeft = (eventTime - today) / day;
+  if (daysLeft <= 0) return null;
+  const event = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }).format(eventTime);
+  const date = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
+  const checkpoints = [
+    { time: eventTime - 41 * day, label: "Review buyer test" },
+    { time: eventTime - 34 * day, label: "Publish one listing" },
+    { time: eventTime - 17 * day, label: "Review promotion" },
+  ].filter(({ time }) => time >= today);
   return {
-    event: date(event),
-    digitalTarget: target > now ? date(target) : null,
+    event,
+    daysLeft,
+    milestones: [
+      ...checkpoints.map(({ time, label }) => ({ date: date.format(time), label })),
+      { date: event, label: "New Year’s Day" },
+    ],
   };
 }
 
@@ -35,8 +45,8 @@ export function listingSegment(title: string) {
 }
 
 export function cafeMatches(titles: DemoListingCapture[], audience: string) {
-  if (!/\b(?:caf[eé]|coffee shop|barista)\b/i.test(audience)) return null;
-  return titles.filter(({ title }) => /\b(?:cafe|coffee shop|coffee bar|barista|takeout|coffee cup)\b|café/i.test(title));
+  if (!/(?:^|[^\p{L}])(?:caf[eé]s?|coffee shops?|baristas?)(?=$|[^\p{L}])/iu.test(audience)) return null;
+  return titles.filter(({ title }) => /\b(?:cafe|coffee shop|coffee bar|barista|coffee roaster|coffee stand)\b|café/i.test(title));
 }
 
 export function usdEstimate(price: string | null) {
@@ -58,7 +68,7 @@ export function usdEstimate(price: string | null) {
 export const formatUsd = (value: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(value);
 
 export function priceSegments(listings: DemoListingCapture[]) {
-  return (["Digital", "Physical", "Unclear"] as const).map((segment) => {
+  return (["Digital", "Unclear", "Physical"] as const).map((segment) => {
     const matches = listings.filter(({title}) => listingSegment(title) === segment);
     const prices = matches.flatMap(({price}) => { const value = usdEstimate(price); return value === null ? [] : [value]; }).sort((a,b) => a-b);
     const middle = Math.floor(prices.length / 2);
