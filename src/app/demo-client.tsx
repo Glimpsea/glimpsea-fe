@@ -1,149 +1,115 @@
 "use client";
 
 import { useState } from "react";
+import { domAnimation, LazyMotion, m, MotionConfig } from "framer-motion";
 import { BriefCopy } from "./brief-copy";
-import { runBuyer, sampleOrder, type BuyerEvent } from "@/lib/buyer";
+import { CATEGORY_LABELS, PRODUCT_CATEGORIES, type ProductCategory } from "@/lib/a2a";
 
-const steps = [
-  { key: "quote", label: "Get a quote" },
-  { key: "authorized", label: "Authorize demo payment" },
-  { key: "working", label: "Prepare the brief" },
-  { key: "completed", label: "Receive the brief" },
-] as const;
-
-const paymentStates = {
-  authorized: "Authorized",
-  settled: "Settled",
-  released: "Released",
-};
-
-const usdcAmount = new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 6 });
-
-const market = new Intl.DisplayNames(["en"], { type: "region" }).of(sampleOrder.country);
-const audience = sampleOrder.audience.replace(/^US cafe/, "Cafe");
-
-type BuyerTask = Awaited<ReturnType<typeof runBuyer>>;
-
-function briefFromTask(task: BuyerTask) {
-  return (task.artifacts ?? []).flatMap((artifact) => artifact.parts)
-    .flatMap((part) => part.text ? [part.text] : [])
-    .join("\n\n");
-}
+const steps = ["Get a quote", "Authorize demo payment", "Prepare the brief", "Receive the brief"];
+const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export default function DemoClient() {
-  const [events, setEvents] = useState<BuyerEvent[]>([]);
-  const [task, setTask] = useState<BuyerTask>();
+  const [category, setCategory] = useState<ProductCategory>();
+  const [progress, setProgress] = useState(0);
+  const [artifact, setArtifact] = useState("");
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
 
   async function start() {
     setRunning(true);
-    setEvents([]);
-    setTask(undefined);
+    setProgress(1);
+    setArtifact("");
     setError("");
 
     try {
-      const result = await runBuyer({
-        onEvent: (event) => setEvents((previous) => [...previous, event]),
+      const response = await fetch("/api/buyer-demo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category }),
+        signal: AbortSignal.timeout(15_000),
       });
-      setTask(result);
-
-      if (result.status.state !== "TASK_STATE_COMPLETED") {
-        const message = result.status.message?.parts.map((part) => part.text).filter(Boolean).join(" ");
-        setError(message || "The order ended before Glimpsea delivered a brief. Run the simulation again.");
-      } else if (!briefFromTask(result)) {
-        setError("The order finished without a brief. Run the simulation again.");
+      const result = await response.json().catch(() => null);
+      if (!response.ok || typeof result?.markdown !== "string" || !result.markdown.trim()) {
+        throw new Error("The sample brief is unavailable. Try again.");
       }
+      setProgress(2);
+      await delay(350);
+      setProgress(3);
+      await delay(550);
+      setArtifact(result.markdown);
+      setProgress(4);
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : "The buyer agent could not finish the order.";
-      setError(`${message} Run the simulation again.`);
+      setError(cause instanceof Error && cause.name === "TimeoutError"
+        ? "The sample brief took too long to load. Try again."
+        : "The sample brief is unavailable. Try again.");
     } finally {
       setRunning(false);
     }
   }
 
-  const latest = events.at(-1);
-  const artifact = task?.status.state === "TASK_STATE_COMPLETED" ? briefFromTask(task) : "";
   const jsonBlock = artifact.match(/^```json[^\S\n]*\n([\s\S]*?)\n```[^\S\n]*$/m);
   const markdown = jsonBlock ? artifact.replace(jsonBlock[0], "").trim() : artifact.trim();
-  const research = task?.metadata.research?.provider;
-  const payment = task?.metadata.payment;
   const state = error ? "Stopped" : running ? "In progress" : artifact ? "Complete" : "Ready";
 
   return (
-    <>
-      <section className="demo-band" id="demo" aria-labelledby="demo-title">
-        <div className="demo wrap">
-        <div className="request">
-          <h2 id="demo-title">Buyer agent demo</h2>
-          <p>Watch a buyer agent request a quote and receive a sample research brief. Payment is simulated.</p>
-          <dl className="request-details">
-            <div><dt>Category</dt><dd>Open to all three</dd></div>
-            <div><dt>Buyers</dt><dd>{audience}</dd></div>
-            <div><dt>Market</dt><dd>{market}</dd></div>
-            <div><dt>Seller work</dt><dd>{sampleOrder.productionHours} hours max</dd></div>
-          </dl>
-          <button className="run-button" type="button" disabled={running} onClick={start}>
-            {running ? "Buyer agent is running" : task || error ? "Run the simulation again" : "Run a simulated agent order"}
-          </button>
-        </div>
-
-        <div className="order">
-          <div className="section-heading">
-            <h2>Order progress</h2>
-            <span className="state">{state}</span>
-          </div>
-          <ol className="order-steps" aria-label="Order steps">
-            {steps.map((step) => {
-              const event = events.find((item) => item.step === step.key);
-              return (
-                <li key={step.key} data-reached={Boolean(event)}>
-                  <span className="step-name">{step.label}</span>
-                  {event && <p>{event.detail}</p>}
-                </li>
-              );
-            })}
-          </ol>
-          <p className="visually-hidden" role="status">
-            {latest ? latest.detail : running ? "The buyer agent is requesting a quote." : ""}
-          </p>
-          {payment && (
-            <div className="receipt">
-              <span>Simulated payment</span>
-              <strong>{paymentStates[payment.state]} · {usdcAmount.format(Number(payment.amount) / 1_000_000)} USDC</strong>
+    <MotionConfig reducedMotion="user">
+      <LazyMotion features={domAnimation}>
+        <section className="demo-band" id="demo" aria-labelledby="demo-title">
+          <div className="demo wrap">
+            <div className="request">
+              <h1 id="demo-title">Buyer agent demo</h1>
+              <p>Follow a sample order for US cafe owners with four hours to make a prototype. The quote and payment are simulated.</p>
+              <div className="landing-tabs demo-options" role="group" aria-label="Product category">
+                <button type="button" aria-pressed={!category} disabled={running} onClick={() => setCategory(undefined)}>Compare all</button>
+                {PRODUCT_CATEGORIES.map((value) => (
+                  <button key={value} type="button" aria-pressed={category === value} disabled={running}
+                    onClick={() => setCategory(value)}>{CATEGORY_LABELS[value]}</button>
+                ))}
+              </div>
+              <button className="run-button" type="button" disabled={running} onClick={start}>
+                {running ? "Preparing sample brief…" : artifact || error ? "Run the simulation again" : "Run the simulation"}
+              </button>
             </div>
-          )}
-        </div>
-        </div>
-      </section>
 
-      <section className="brief wrap" id="brief" aria-labelledby="brief-title">
-        <div className="brief-heading">
-          <h2 id="brief-title">Research brief</h2>
-          {artifact && research && (
-            <span>{research === "near-ai-cloud" ? "Prepared with NEAR AI Cloud" : "Sample research data"}</span>
-          )}
-        </div>
+            <div className="order">
+              <div className="section-heading">
+                <h2>Order progress</h2>
+                <span className="state">{state}</span>
+              </div>
+              <progress className="demo-progress" max={4} value={progress} aria-label="Simulation progress" />
+              <ol className="order-steps" aria-label="Order steps">
+                {steps.map((label, index) => (
+                  <li key={label} data-reached={progress > index}><span className="step-name">{label}</span></li>
+                ))}
+              </ol>
+              <p className="visually-hidden" role="status">{running ? steps[progress - 1] : state}</p>
+              {artifact && <div className="receipt"><span>Simulated payment settled</span><strong>2.50 USDC</strong></div>}
+            </div>
+          </div>
+        </section>
 
-        {error ? (
-          <p className="brief-status" role="alert">{error}</p>
-        ) : artifact ? (
-          <>
-            <BriefCopy markdown={markdown} />
-            {jsonBlock && (
-              <details className="json-details">
-                <summary>View brief JSON</summary>
-                <pre><code>{jsonBlock[1]}</code></pre>
-              </details>
-            )}
-          </>
-        ) : (
-          <p className="brief-status">
-            {running ? "The brief appears here after the buyer agent receives it." : "Run the simulated order to see the sample brief."}
-          </p>
-        )}
-        {task && <p className="task-id">Order ID <code>{task.id}</code></p>}
-      </section>
-    </>
+        <section className="brief wrap" id="brief" aria-labelledby="brief-title">
+          <div className="brief-heading">
+            <h2 id="brief-title">Research brief</h2>
+            {artifact && <span>Sample research data</span>}
+          </div>
+          {error ? <p className="brief-status" role="alert">{error}</p> : artifact ? (
+            <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .25 }}>
+              <BriefCopy markdown={markdown} />
+              {jsonBlock && (
+                <details className="json-details">
+                  <summary>View brief JSON</summary>
+                  <pre><code>{jsonBlock[1]}</code></pre>
+                </details>
+              )}
+            </m.div>
+          ) : (
+            <p className="brief-status">
+              {running ? "Preparing your sample brief." : "Run the simulation to see the sample brief."}
+            </p>
+          )}
+        </section>
+      </LazyMotion>
+    </MotionConfig>
   );
 }

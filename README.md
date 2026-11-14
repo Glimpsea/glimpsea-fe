@@ -8,6 +8,8 @@ The team's other NEAR HACKATHON project is [AgSurance](https://github.com/AgSura
 
 ## Install the Glimpsea extension
 
+The [Glimpsea landing page](https://glimpsea.vercel.app/#install-extension) has separate install steps for Chrome, Opera GX, and Brave. Its interactive chart uses five directly checked keywords from the saved Etsy Marketplace Insights pilot described below.
+
 1. [Download the Glimpsea v0.1.5 extension ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.5/glimpsea-chrome-v0.1.5.zip) and extract it.
 2. On desktop, open `chrome://extensions` in Chrome, `opera://extensions` in Opera GX, or `brave://extensions` in Brave. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the extracted `glimpsea` folder.
@@ -73,11 +75,11 @@ If NearBlocks asks for a browser check, use the NEAR testnet RPC with hash `P93U
 
 ## Run the web demo
 
-Run `bun run dev` in this directory. Open [the local demo](http://127.0.0.1:3000).
+Open the [developer demo](https://glimpsea.vercel.app/developers) from **For developers** on the landing page. To run it locally, start `bun run dev` and open [the local developer demo](http://127.0.0.1:3000/developers).
 
-Select **Run buyer agent**. You can also run `bun run demo` in a second terminal. The command prints the brief and its JSON block to standard output.
+Choose **Compare all** or a product category, then select **Run the simulation**. The web demo retrieves a sample brief and shows a simulated 2.50 USDC quote and payment. It runs without a wallet, database, or NEAR AI Cloud credentials.
 
-The sample quote is 2.50 USDC. The payment simulator records authorization and settlement without moving funds. The starter configuration returns a labeled sample brief. It does not measure demand or call an AI model.
+To exercise the A2A quote, authorization, and settlement against the local server, run `bun run demo` in a second terminal. The command prints the brief and its JSON block to standard output.
 
 ## Use NEAR AI Cloud for research
 

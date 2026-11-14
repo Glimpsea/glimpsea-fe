@@ -401,7 +401,7 @@ export async function runCloud<T>(input: object, prompt: string,
   throw new ResearchServiceError(`NEAR AI Cloud returned an invalid research brief. ${reason}`);
 }
 
-export async function research(input: OrderInput, catalogEvidence?: CatalogEvidence): Promise<ResearchResult> {
+export async function research(input: OrderInput, catalogEvidence?: CatalogEvidence, mode = process.env.GLIMPSEA_RESEARCH_MODE?.trim()): Promise<ResearchResult> {
   const order: OrderInput = {
     country: requireText(input.country, 120),
     audience: requireText(input.audience, 400),
@@ -414,7 +414,6 @@ export async function research(input: OrderInput, catalogEvidence?: CatalogEvide
   if (!Number.isFinite(order.productionHours) || order.productionHours <= 0) {
     throw new Error("Research requires a positive production-hour budget.");
   }
-  const mode = process.env.GLIMPSEA_RESEARCH_MODE?.trim();
   if (mode && mode !== "fixture" && mode !== "near-ai-cloud") {
     throw new Error("GLIMPSEA_RESEARCH_MODE must be fixture or near-ai-cloud.");
   }

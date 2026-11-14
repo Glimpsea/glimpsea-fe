@@ -21,8 +21,21 @@ type BuyerOptions = {
 
 type TaskResponse = { result?: { task: Task }; error?: { message: string } };
 
+async function readResponse<T extends object>(response: Response): Promise<T> {
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new Error(`Glimpsea could not read the simulation response (HTTP ${response.status}).`);
+  }
+  if (payload === null || typeof payload !== "object" || Array.isArray(payload)) {
+    throw new Error("Glimpsea returned an invalid simulation response.");
+  }
+  return payload as T;
+}
+
 async function readTask(response: Response) {
-  const body = await response.json() as TaskResponse;
+  const body = await readResponse<TaskResponse>(response);
   if (!response.ok || !body.result?.task) {
     throw new Error(body.error?.message ?? "The agent did not return a task. Start a new order.");
   }
@@ -59,7 +72,7 @@ export async function runBuyer({
   });
   const params = { message: { messageId: crypto.randomUUID(), role: "ROLE_USER", parts: [{ data: order }] } };
   const price = await send("SendMessage", params);
-  const quote = await price.json() as { x402Version?: number; accepts?: SimulatedOffer[]; error?: { message: string } };
+  const quote = await readResponse<{ x402Version?: number; accepts?: SimulatedOffer[]; error?: { message: string } }>(price);
   const offer = quote.accepts?.[0];
   if (price.status !== 402 || quote.x402Version !== 2 || offer?.scheme !== "glimpsea-simulation"
       || offer.network !== "glimpsea:local" || offer.asset !== "USDC" || !/^\d{1,12}$/.test(offer.amount)) {
