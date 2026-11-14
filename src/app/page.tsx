@@ -6,7 +6,7 @@ import { LandingHeroPhoto } from "./landing-hero-photo";
 import { LandingInstall } from "./landing-install";
 import { LandingMarket, type MarketPoint } from "./landing-market";
 
-const extensionDownload = "https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.5/glimpsea-chrome-v0.1.5.zip";
+const extensionDownload = "https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.6/glimpsea-chrome-v0.1.6.zip";
 const asCount = (value: string) => parseFloat(value) * (value.endsWith("k") ? 1_000 : 1);
 const plotPosition = (value: string, min: number, max: number) => 10 + 77 * (Math.log(asCount(value) / min) / Math.log(max / min));
 

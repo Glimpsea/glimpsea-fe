@@ -587,6 +587,9 @@ form.addEventListener("submit", (event) => {
   input.keyword = etsyKeyword.value.trim();
   input.audience = form.elements.audience.value.trim();
   input.productionHours = Number(input.productionHours);
+  if (!input.category) delete input.category;
+  if (input.budgetUsd === "") delete input.budgetUsd;
+  else if (input.budgetUsd !== undefined) input.budgetUsd = Number(input.budgetUsd);
   if (!pendingJob() && !needsWalletForOrder && (!input.keyword || !input.audience)) {
     status.textContent = "Enter an Etsy keyword and target buyers.";
     (input.keyword ? form.elements.audience : etsyKeyword).focus();

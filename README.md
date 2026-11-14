@@ -10,7 +10,7 @@ The team's other NEAR HACKATHON project is [AgSurance](https://github.com/AgSura
 
 The [Glimpsea landing page](https://glimpsea.vercel.app/#install-extension) has separate install steps for Chrome, Opera GX, and Brave. Its interactive chart uses five directly checked keywords from the saved Etsy Marketplace Insights pilot described below.
 
-1. [Download the Glimpsea v0.1.5 extension ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.5/glimpsea-chrome-v0.1.5.zip) and extract it.
+1. [Download the Glimpsea v0.1.6 extension ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.6/glimpsea-chrome-v0.1.6.zip) and extract it.
 2. On desktop, open `chrome://extensions` in Chrome, `opera://extensions` in Opera GX, or `brave://extensions` in Brave. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the extracted `glimpsea` folder.
 4. Open **Glimpsea Research** from your browser’s extensions menu.
@@ -45,7 +45,11 @@ In the current source, type any keyword in **Etsy keyword** or use the keyword f
 
 In the side panel, expand **Find product opportunities**, choose **Cafe operations** or **Small events and micro weddings**, and select **Open private brief**. In wallet mode, you can reopen each brief from your research history.
 
-Completed Etsy reports show two pilot cards under **Peluang dari pilot**. The cards cover a micro-wedding timeline and a cafe shift handoff checklist. Each card explains the search evidence, gaps, and a next step to test the idea. These ideas come from a shared pilot snapshot, so they are the same across search keywords. Open **Listing dan harga dari scan Etsy** under **Transparansi** to see the listings and prices saved for your own search.
+With NEAR AI Cloud configured, the Etsy report shows three ideas under **Products to test**. Glimpsea uses the search keyword, target buyer, time limit, and product formats found in the scan. Before you start a search, expand **Set product limits** to add a product type, a setup budget in USD, or what you can make. These fields are optional. Each card tells you what to make and gives one buyer test. The fit score uses time, setup cost, and available evidence. If the top ideas tie, the report gives them the same rank.
+
+Select **See why** to open the product details. **Listings and displayed prices** contains the saved scan and a CSV download. If an older report has saved listings and no cards, select **Generate product ideas**. This uses the existing report without a new scan, trial, or payment.
+
+The report shows searches per 1,000 results when the saved snapshot has direct figures for that keyword. It uses this ratio first when all ideas are in the same category and have direct figures. For New Year searches, the report shows the event date and a suggested date to publish digital products. The price appendix groups digital and physical items by signals in their titles. It keeps the original displayed prices and gives USD estimates using the dated ECB reference rates shown in the report.
 
 The pilot uses one Etsy Marketplace Insights snapshot recorded on November 14, 2026 for October 14 through November 12, 2026. Of the 15 candidate keywords, five were checked directly, six appeared as related terms, and four had missing data. The snapshot covers 30 days. Weekly growth rates, opportunity scores, and production deadlines need more evidence. Opening a pilot brief uses the saved snapshot and does not consume a Basic trial.
 
@@ -133,7 +137,7 @@ GLIMPSEA_EXTENSION_NEAR_TESTNET=0 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_ETSY_LIVE_B
 1. Open `opera://extensions` in Opera GX. Turn on **Developer mode**, select **Load unpacked**, and choose this repository's `extension` folder. If Glimpsea is already installed from that folder, select **Reload**.
 2. Open [Etsy search for cafe owner supplies](https://www.etsy.com/search?q=cafe+owner+supplies). From the Opera GX extensions menu, open **Glimpsea Research Demo** beside the search results.
 3. Enter or edit **Etsy keyword**, add your target buyer and available hours, then click **Start analysis**. Allow Etsy access when your browser prompts you. Use a Basic trial or select **Simulate payment**.
-4. Watch the scan highlight cards and move to page 2. When the panel shows **Report ready**, select **Open your report**. The report shows the title, active price when available, and one Etsy URL per listing ID. For the cafe search, it also groups matching titles, summarizes prices by currency, and compares three product ideas against the seller's time limit.
+4. Watch the scan highlight cards and move to page 2. When the panel shows **Report ready**, select **Open your report**. The report shows the title, displayed price when available, and one Etsy URL per listing ID. When NEAR AI Cloud is configured, the report also lists ideas that fit the seller’s time limit.
 
 For the paid pilot, set `GLIMPSEA_EXTENSION_NEAR_TESTNET=1` and configure the checkout contract as shown under **Testnet wallet and checkout**. Keep `GLIMPSEA_ETSY_LIVE_BASIC=1`. Choose **Pay on NEAR testnet**, select **Connect wallet**, and approve the 0.01 testnet NEAR payment. The panel starts research after final verification. If Etsy restricts access, wait until your Etsy tab shows the search results, then select **Resume research** on the same order.
 

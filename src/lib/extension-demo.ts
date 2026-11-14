@@ -1,9 +1,10 @@
 import { createHash, createHmac, randomInt, randomUUID, timingSafeEqual } from "node:crypto";
-import { PRODUCT_CATEGORIES, type OrderInput } from "./a2a";
+import { PRODUCT_CATEGORIES } from "./a2a";
 import { catalogPath, demoCatalogPage, demoListing, summarizeDemoCatalog, type DemoListingCapture } from "./demo-catalog";
 import { db } from "./orders";
 import { research } from "./research";
 import { renderEtsyBrief } from "./etsy-brief";
+import { buildEtsyRecommendations, type Recommendation, type ScanSeller } from "./etsy-recommendations";
 import { ExtensionDemoError } from "./extension-errors";
 import { accountForSessionFingerprint, nearOwner } from "./near-auth";
 import { checkoutReceiver, verifyTestnetTransfer } from "./near-testnet";
@@ -18,7 +19,7 @@ const testnetPrices = { basic: 10n ** 22n, medium: 3n * 10n ** 22n, deep: 6n * 1
 type Checkout = { id: string; owner: string; receiver: string; amount: string; tx_hash: string | null };
 type ContractCheckout = Checkout & { verified_at: number | null };
 type Capture = { page: number; listings: DemoListingCapture[]; hasNext: boolean; nextUrl?: string };
-type DemoOrder = OrderInput & { collection?: "dom" | "etsy" };
+type DemoOrder = ScanSeller & { collection?: "dom" | "etsy" };
 type StoredOrder = DemoOrder | { collection: "opportunities"; topic: string; snapshot: string };
 type Job = {
   id: string;
@@ -44,6 +45,9 @@ function database() {
     CREATE INDEX IF NOT EXISTS extension_demo_owner ON extension_demo_jobs(owner, access, state);
     CREATE TABLE IF NOT EXISTS extension_demo_captures (
       job_id TEXT NOT NULL, page INTEGER NOT NULL, capture_json TEXT NOT NULL, PRIMARY KEY (job_id, page)
+    );
+    CREATE TABLE IF NOT EXISTS extension_etsy_recommendations (
+      job_id TEXT PRIMARY KEY, cards_json TEXT, retry_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS extension_demo_tickets (
       ticket TEXT PRIMARY KEY, job_id TEXT NOT NULL, owner TEXT NOT NULL, expires_at INTEGER NOT NULL
@@ -78,6 +82,7 @@ export function trialsRemaining(owner: string) {
 
 export function startDemo(owner: string, input: Record<string, unknown>, nearAccount?: string, nearTestnet = Boolean(nearAccount)) {
   const { keyword, plan, access, category, productionHours, audience } = input;
+  const { budgetUsd, skills } = input;
   if (typeof keyword !== "string" || !keyword.trim() || keyword.length > 120
       || typeof audience !== "string" || !audience.trim() || audience.length > 180
       || (plan !== "basic" && plan !== "medium" && plan !== "deep")
@@ -88,6 +93,10 @@ export function startDemo(owner: string, input: Record<string, unknown>, nearAcc
   }
   const supported = PRODUCT_CATEGORIES.find((item) => item === category);
   if (category !== undefined && !supported) throw new ExtensionDemoError("Choose a supported category.");
+  if ((budgetUsd !== undefined && (typeof budgetUsd !== "number" || !Number.isFinite(budgetUsd) || budgetUsd < 0 || budgetUsd > 10_000))
+      || (skills !== undefined && (typeof skills !== "string" || skills.length > 300))) {
+    throw new ExtensionDemoError("Enter a budget from $0 to $10,000 and keep skills under 300 characters.");
+  }
   if (access === "trial" && plan !== "basic") throw new ExtensionDemoError("Trials use the Basic package.");
   const collection = input.collection === "etsy" ? "etsy" : input.collection === "dom" ? "dom" : undefined;
   if (collection === "etsy" && (process.env.GLIMPSEA_ETSY_LIVE_BASIC !== "1" || plan !== "basic")) {
@@ -98,7 +107,8 @@ export function startDemo(owner: string, input: Record<string, unknown>, nearAcc
   }
   const id = randomUUID();
   const order: DemoOrder = { country: "US", audience: audience.trim(), productionHours,
-    ...(supported && { category: supported }), collection };
+    ...(supported && { category: supported }), ...(budgetUsd !== undefined && { budgetUsd }),
+    ...(typeof skills === "string" && skills.trim() && { skills: skills.trim() }), collection };
   if (nearAccount && access === "testnet-payment") {
     const contract = input.paymentProtocol === "contract-v1";
     if (contract && plan !== "basic") throw new ExtensionDemoError("Contract checkout supports Basic only.");
@@ -420,6 +430,7 @@ export async function analyzeDemo(owner: string, id: unknown) {
 
   try {
     const order = JSON.parse(job.order_json) as DemoOrder;
+    if (order.collection === "etsy") await saveEtsyRecommendations(job, order);
     const markdown = order.collection === "etsy" ? etsyReport(job, order) : (await research(order, order.collection === "dom"
       ? summarizeCaptures(job) : summarizeDemoCatalog(job.keyword, plans[job.plan], job.pages))).markdown;
     database().prepare(`
@@ -457,16 +468,61 @@ function etsyReport(job: Job, order: DemoOrder) {
   return renderEtsyBrief({ keyword: job.keyword, pagesRead, limit: plans[job.plan], listings, order });
 }
 
+async function saveEtsyRecommendations(job: Job, order: DemoOrder) {
+  const { listings } = summarizeCaptures(job);
+  if (!listings.length || !process.env.NEAR_AI_API_KEY?.trim()) return false;
+  const connection = database();
+  const now = Date.now();
+  const retryAt = now + 90_000;
+  const claim = connection.prepare(`
+    INSERT INTO extension_etsy_recommendations (job_id, retry_at) VALUES (?, ?)
+    ON CONFLICT(job_id) DO UPDATE SET retry_at = excluded.retry_at
+    WHERE (cards_json IS NULL OR json_extract(cards_json, '$[0].whyThisSearch') IS NULL) AND retry_at <= ?
+  `).run(job.id, retryAt, now);
+  if (!claim.changes) {
+    const saved = connection.prepare("SELECT cards_json FROM extension_etsy_recommendations WHERE job_id = ?")
+      .get(job.id) as { cards_json: string | null } | undefined;
+    return Boolean(saved?.cards_json && (JSON.parse(saved.cards_json) as Recommendation[])[0]?.whyThisSearch);
+  }
+  try {
+    const cards = await buildEtsyRecommendations(job.keyword, order, listings);
+    connection.prepare("UPDATE extension_etsy_recommendations SET cards_json = ? WHERE job_id = ? AND retry_at = ?")
+      .run(JSON.stringify(cards), job.id, retryAt);
+    return true;
+  } catch (error) {
+    console.error("Could not generate Etsy recommendation cards:", error instanceof Error ? error.message : "Unknown error");
+    connection.prepare("UPDATE extension_etsy_recommendations SET retry_at = ? WHERE job_id = ? AND retry_at = ?")
+      .run(Date.now() + 15_000, job.id, retryAt);
+    return false;
+  }
+}
+
+export async function recommendForSavedReport(owner: string, id: string) {
+  const job = readJob(owner, id);
+  const order = JSON.parse(job.order_json) as StoredOrder;
+  if (job.state !== "complete" || order.collection === "opportunities"
+      || !(order.collection === "etsy" || job.markdown?.startsWith("## Etsy live search\n"))) {
+    throw new ExtensionDemoError("This Etsy report is unavailable.", 404);
+  }
+  if (!await saveEtsyRecommendations(job, order)) {
+    throw new ExtensionDemoError("Product ideas are unavailable right now. Try again in a moment.", 503);
+  }
+}
+
 export function demoReportView(owner: string, id: string) {
   const job = readJob(owner, id);
   if (job.state !== "complete" || !job.markdown) throw new ExtensionDemoError("The report is not ready.", 404);
   const order = JSON.parse(job.order_json) as StoredOrder;
   if (order.collection === "etsy" || job.markdown.startsWith("## Etsy live search\n")) {
     // Older live reports have saved captures and can gain the brief without another scan.
-    const markdown = job.markdown.includes("\n### Listings read from Etsy\n")
-      ? etsyReport(job, order as DemoOrder)
-      : job.markdown;
-    return { markdown, etsy: { keyword: job.keyword, pages: job.pages, limit: plans[job.plan] } };
+    const { listings } = summarizeCaptures(job);
+    const markdown = listings.length ? etsyReport(job, order as DemoOrder) : job.markdown;
+    const saved = database().prepare("SELECT cards_json FROM extension_etsy_recommendations WHERE job_id = ?")
+      .get(id) as { cards_json: string | null } | undefined;
+    const stored = saved?.cards_json ? JSON.parse(saved.cards_json) as Recommendation[] : [];
+    const cards = stored[0]?.whyThisSearch ? stored : [];
+    return { markdown, etsy: { keyword: job.keyword, pages: job.pages, limit: plans[job.plan],
+      seller: order as DemoOrder, listings, cards } };
   }
   return { markdown: job.markdown };
 }

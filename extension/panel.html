@@ -53,6 +53,23 @@
             </div>
           </div>
         </div>
+        <details class="disclosure">
+          <summary>Set product limits</summary>
+          <label>Product type
+            <select name="category">
+              <option value="">Any type</option>
+              <option value="digital">Digital download</option>
+              <option value="pod">Print-on-demand</option>
+              <option value="personalized">Simple personalization</option>
+            </select>
+          </label>
+          <label>Setup budget (USD)
+            <input name="budgetUsd" type="number" min="0" max="10000" step="0.01" placeholder="Optional">
+          </label>
+          <label>What can you make?
+            <input name="skills" maxlength="300" placeholder="e.g. I can design printable cards">
+          </label>
+        </details>
         <fieldset class="research-payment" aria-describedby="trials access-note">
           <legend>Research access</legend>
           <!-- React Bits Jelly Radio, adapted with native radio inputs. -->

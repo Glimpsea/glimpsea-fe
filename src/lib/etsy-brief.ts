@@ -45,65 +45,6 @@ function link(listing: Listing, title = listing.title) {
   return `- [${safe(title)}](${listing.url}) · ${listing.price === null ? "No price shown" : safe(listing.price)}`;
 }
 
-function cafeIdeas(listings: Listing[], order: OrderInput) {
-  const matches = (pattern: Pattern) => listings.filter(({ title }) => pattern.match.test(title));
-  const operations = matches(cafePatterns.operations);
-  const aprons = matches(cafePatterns.apparel);
-  const portraits = matches(cafePatterns.portraits);
-  const ideas = [
-    {
-      title: "Opening and closing shift checklist",
-      type: "Digital download",
-      hours: 2.5,
-      evidence: operations.find(({ title }) => /checklist template/i.test(title)) ?? operations[0],
-      pitch: "Create a one-page editable US Letter checklist for shift handoffs. Add a staff initials box and separate opening and closing tasks. Confirm the tasks with a cafe manager.",
-      cost: "Use existing design tools for the mockup. Verify listing fees before publishing.",
-      reason: "A cafe manager can try it on the next shift. A mockup needs neither a supplier nor a customer photo.",
-      test: "Show one mockup to three US cafe owners or managers. Ask each to mark a missing task and say whether they would try it on a shift. Proceed if two agree to try it and the feedback identifies a task the mockup can improve.",
-    },
-    {
-      title: "Cafe staff apron with shop name",
-      type: "Print on demand",
-      hours: 3,
-      evidence: aprons.find(({ title }) => /coffee shop uniform/i.test(title)) ?? aprons[0],
-      pitch: "Mock up a one-color shop name on a neutral apron. Keep personalization to one text field. The estimate covers seller setup and excludes supplier lead time.",
-      cost: "Verify the blank, printing, sample, and US delivery costs before setting a price.",
-      reason: "It is easy to mock up, but an actual sale depends on a supplier quote and a sample quality check.",
-      test: "Get one US supplier quote and show a mockup to three cafe owners. Proceed if two would consider ordering at a price that covers the quoted costs.",
-    },
-    {
-      title: "Custom storefront print",
-      type: "Simple personalization",
-      hours: 3.5,
-      evidence: portraits[0],
-      pitch: "Turn one cafe storefront photo into a simplified line drawing and deliver one print-ready file. Limit the pilot to one photo and one proof.",
-      cost: "Check whether photo cleanup or revisions fit the estimate. Use a photo supplied with permission.",
-      reason: "It gives the owner a custom display piece, but photo quality and revisions make delivery time less predictable.",
-      test: "Time one mockup from a photo you have permission to use and show it to three owners. Proceed if you finish within the estimate and two ask about a custom version.",
-    },
-  ];
-  const chosen = ideas.filter((idea) => idea.evidence && idea.hours <= order.productionHours)
-    .sort((left, right) => left.hours - right.hours)[0];
-
-  const lines = ["## Three product ideas", ""];
-  for (const idea of ideas) {
-    const status = idea.hours <= order.productionHours ? "within the time limit" : "over the time limit";
-    lines.push(`### ${idea.title}`, "",
-      `${idea.type} · estimated ${idea.hours} hours of seller work (${status}). ${idea.pitch}`, "",
-      idea.cost, "", idea.reason, "");
-    if (idea.evidence) lines.push(link(idea.evidence, "Comparable listing in the sample"), "");
-    else lines.push("No direct comparable was found in this sample.", "");
-  }
-  if (chosen) {
-    lines.push("## Recommended first test", "",
-      `**${chosen.title}** It has a comparable in this sample and takes the least seller time of the supported ideas within the limit. ${chosen.reason}`, "",
-      chosen.test, "");
-  } else {
-    lines.push("## Recommendation deferred", "", "The sample did not support an idea within the seller's time limit. Collect a more specific sample or revise the production limit.", "");
-  }
-  return lines;
-}
-
 export function renderEtsyBrief({ keyword, pagesRead, limit, listings, order }: {
   keyword: string;
   pagesRead: number;
@@ -136,10 +77,6 @@ export function renderEtsyBrief({ keyword, pagesRead, limit, listings, order }: 
         `${matching.length} matching titles.${ranges.length ? ` ${ranges.join(" / ")}.` : ""}`, "",
         ...matching.slice(0, 2).map((listing) => link(listing)), "");
     }
-    lines.push(...cafeIdeas(relevant, order));
-  } else {
-    lines.push("## Product recommendation", "",
-      "This pilot has a product comparison for cafe searches. Use the observed prices and captured listings to review this search.", "");
   }
   lines.push("## Listings read from Etsy", "", ...listings.map((listing) => link(listing)));
   return lines.join("\n");
