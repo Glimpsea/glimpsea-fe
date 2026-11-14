@@ -1,28 +1,30 @@
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { demoReport, ExtensionDemoError, reportSessionOwner } from "@/lib/extension-demo";
+import { demoReportView, ExtensionDemoError, reportSessionOwner } from "@/lib/extension-demo";
 import { BriefCopy } from "../../brief-copy";
 import { nearOwner, nearSessionCookie, sessionAccount } from "@/lib/near-auth";
 import { nearMode } from "@/lib/near-testnet";
+import { EtsyResearchReport } from "./etsy-research-report";
 
 export default async function ReportPage({ params }: { params: Promise<{ id: string }> }) {
   if (!nearMode() && process.env.GLIMPSEA_EXTENSION_DEMO !== "1") notFound();
   const { id } = await params;
   if (!/^[a-f0-9-]{36}$/.test(id)) notFound();
   const jar = await cookies();
-  let markdown;
+  let report;
   try {
     const reportOwner = reportSessionOwner(jar.get(`glimpsea_report_${id}`)?.value, id);
     const owner = reportOwner ?? (nearMode() ? nearOwner(sessionAccount(jar.get(nearSessionCookie)?.value)) : undefined);
     if (!owner) notFound();
-    markdown = demoReport(owner, id);
+    report = demoReportView(owner, id);
   } catch (error) {
     if (error instanceof ExtensionDemoError) notFound();
     throw error;
   }
-  const [body] = markdown.split("\n```json\n");
-  const source = body.startsWith("## Etsy live search") ? "Listings read from Etsy search results."
-    : body.startsWith("## New topic opportunity brief") ? "Product ideas from your seller brief, with a sample from Etsy live."
+  const [body] = report.markdown.split("\n```json\n");
+  if (report.etsy) return <EtsyResearchReport scan={body} {...report.etsy} />;
+
+  const source = body.startsWith("## New topic opportunity brief") ? "Product ideas from your seller brief, with a sample from Etsy live."
     : body.includes("## Candidate evidence\n") ? "Product ideas based on a saved Etsy Marketplace Insights snapshot."
     : "Research from the synthetic Glimpsea catalog.";
   return (

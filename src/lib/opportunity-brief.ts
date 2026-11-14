@@ -5,9 +5,11 @@ import { ResearchServiceError, runCloud } from "./research";
 
 // Marketplace Insights observations transcribed in docs/glimpsea-niche-pilot-week-01.md
 // in the NEAR Hackathon workspace. Keep Etsy's rounded display values as strings.
-const opportunitySnapshot = {
+export const opportunitySnapshot = {
   observedOn: "2026-11-14",
   period: "October 14 to November 12, 2026",
+  start: "2026-10-14",
+  end: "2026-11-12",
 };
 
 type Counts = {
@@ -80,7 +82,7 @@ export function opportunityTopic(value: unknown): Topic | undefined {
 
 export const opportunitySnapshotDate = opportunitySnapshot.observedOn;
 
-function insightLink(keyword: string) {
+export function insightLink(keyword: string) {
   return `https://www.etsy.com/your/shops/me/marketplace-insights/search?query=${encodeURIComponent(keyword)}`;
 }
 

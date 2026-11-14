@@ -457,14 +457,22 @@ function etsyReport(job: Job, order: DemoOrder) {
   return renderEtsyBrief({ keyword: job.keyword, pagesRead, limit: plans[job.plan], listings, order });
 }
 
-export function demoReport(owner: string, id: string) {
+export function demoReportView(owner: string, id: string) {
   const job = readJob(owner, id);
   if (job.state !== "complete" || !job.markdown) throw new ExtensionDemoError("The report is not ready.", 404);
-  // Older live reports have saved captures and can gain the brief without another scan.
-  if (job.markdown.includes("\n### Listings read from Etsy\n") && job.markdown.startsWith("## Etsy live search\n")) {
-    return etsyReport(job, JSON.parse(job.order_json) as DemoOrder);
+  const order = JSON.parse(job.order_json) as StoredOrder;
+  if (order.collection === "etsy" || job.markdown.startsWith("## Etsy live search\n")) {
+    // Older live reports have saved captures and can gain the brief without another scan.
+    const markdown = job.markdown.includes("\n### Listings read from Etsy\n")
+      ? etsyReport(job, order as DemoOrder)
+      : job.markdown;
+    return { markdown, etsy: { keyword: job.keyword, pages: job.pages, limit: plans[job.plan] } };
   }
-  return job.markdown;
+  return { markdown: job.markdown };
+}
+
+export function demoReport(owner: string, id: string) {
+  return demoReportView(owner, id).markdown;
 }
 
 export function issueReportTicket(owner: string, id: string, fingerprint?: string) {

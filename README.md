@@ -33,11 +33,19 @@ Install Chrome, Node.js 22.22.2 or later, and Bun.
 
 In the current source, type any keyword in **Etsy keyword** or use the keyword from your Etsy search tab. Enter a **Target buyer**, then choose **Use Basic trial** or **Pay on NEAR testnet**. Glimpsea opens the matching Etsy results when research starts.
 
+## Reopen a saved Etsy report
+
+1. Open Glimpsea in the browser profile you used for the search. For a paid report, connect the same NEAR testnet wallet that paid if it is disconnected.
+2. Under **Research history**, select the keyword marked **Report ready**.
+3. Select **Open your report**. Glimpsea opens the private report with its saved listings and prices. This uses the existing order without a new scan, trial, or payment.
+
 ## Find product opportunities
 
 In the side panel, expand **Find product opportunities**, choose **Cafe operations** or **Small events and micro weddings**, and select **Open private brief**. In wallet mode, you can reopen each brief from your research history.
 
-The pilot compares 15 candidates from the Etsy Marketplace Insights snapshot recorded November 14, 2026. It labels direct lookups, related terms, and missing data. The two briefs show a decision and a small product test. Opening a brief uses the saved snapshot and does not consume a Basic trial.
+Completed Etsy reports show two pilot cards under **Peluang dari pilot**. The cards cover a micro-wedding timeline and a cafe shift handoff checklist. Each card explains the search evidence, gaps, and a next step to test the idea. These ideas come from a shared pilot snapshot, so they are the same across search keywords. Open **Listing dan harga dari scan Etsy** under **Transparansi** to see the listings and prices saved for your own search.
+
+The pilot uses one Etsy Marketplace Insights snapshot recorded on November 14, 2026 for October 14 through November 12, 2026. Of the 15 candidate keywords, five were checked directly, six appeared as related terms, and four had missing data. The snapshot covers 30 days. Weekly growth rates, opportunity scores, and production deadlines need more evidence. Opening a pilot brief uses the saved snapshot and does not consume a Basic trial.
 
 To research a new topic, enter your target buyers and available hours before starting a Basic **Etsy live search**. After the scan, choose **My own topic** under **Find product opportunities**. Add your skills, setup budget, and an optional topic, then select **Generate private brief**. The scan and brief share the target buyers and hours you entered for the scan. With `NEAR_AI_API_KEY` configured on the server, NEAR AI Cloud uses these inputs and the search keyword to propose three to five ideas. Glimpsea checks their exact keywords against the saved Marketplace Insights snapshot. It flags missing and related-term evidence and links to the Etsy scan for listing and price comparisons. The scan uses the usual trial or checkout.
 

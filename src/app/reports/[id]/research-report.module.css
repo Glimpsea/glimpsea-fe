@@ -1,0 +1,210 @@
+.report {
+  --report-rule: color-mix(in srgb, var(--color-ink) 28%, transparent);
+  --report-text-muted: #60433a;
+  padding-block: clamp(.75rem, 2.5vw, 2rem) 4rem;
+}
+
+.reportHeader {
+  display: grid;
+  justify-items: start;
+  gap: .4rem;
+  border-block: 1px solid var(--color-ink);
+  padding-block: clamp(1rem, 2.5vw, 1.75rem);
+}
+
+.reportHeader h1, .reportSection > h2 {
+  font: italic 400 clamp(2.5rem, 6vw, 5.25rem)/.98 var(--font-editorial);
+  letter-spacing: -.065em;
+}
+
+.reportHeader p { max-width: 54ch; }
+.scanScope { overflow-wrap: anywhere; }
+.reportSection {
+  container-type: inline-size;
+  margin-top: clamp(1.75rem, 3.5vw, 3rem);
+}
+
+.reportSection > h2 {
+  margin-bottom: .55rem;
+  font-size: clamp(1.95rem, 4.4vw, 3.25rem);
+}
+
+.muted, .category, .detailMeta, .signals dd { color: var(--report-text-muted); }
+.boardHeader { margin-block: 1rem .8rem; }
+.filters, .cardLabels, .cardActions, .sectionHeader, .candidates li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filters { gap: .45rem; }
+.cardLabels, .sectionHeader, .candidates li { justify-content: space-between; gap: .4rem .75rem; }
+.cardActions { gap: 0 1rem; }
+
+.filters button, .button {
+  border: 1px solid var(--color-ink);
+  border-radius: .35rem;
+  min-height: 44px;
+  padding: .45rem .75rem;
+  font-weight: 600;
+}
+
+.filters button { font-size: .875rem; }
+.filters button[aria-pressed="true"], .filters button:hover { background: var(--color-ink); color: var(--color-pale-pine); }
+.button:hover { background: #ffde77; }
+.filters button:active, .button:active { transform: translateY(1px); }
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+}
+
+.spotlight {
+  position: relative;
+  isolation: isolate;
+}
+
+.spotlightLight {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(18rem circle at var(--spotlight-x, 50%) var(--spotlight-y, 50%),
+    color-mix(in srgb, var(--color-butter-yellow) 19%, transparent), transparent 78%);
+  opacity: 0;
+}
+
+@media (any-hover: hover) and (prefers-reduced-motion: no-preference) {
+  .spotlightLight { transition: opacity 180ms ease-out; }
+  .spotlight[data-spotlight="active"]:hover > .spotlightLight { opacity: 1; }
+}
+
+.card {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto;
+  gap: 1rem;
+  min-width: 0;
+  border: 1px solid var(--color-ink);
+  border-top-width: 3px;
+  background: #fff9eb;
+  padding: clamp(1rem, 2.5vw, 1.55rem);
+}
+
+.card:only-child { max-width: 38rem; }
+.card[data-priority="true"] { border-top-color: var(--color-deep-burgundy); }
+
+.decision, .dataStatus {
+  border: 1px solid currentColor;
+  padding: .18rem .48rem;
+  font-size: .8125rem;
+  font-weight: 600;
+}
+
+.decision { color: #88232b; }
+.dataStatus { color: #64400e; background: #ffedb6; }
+.card h3 { font-size: clamp(1.25rem, 2.15vw, 1.65rem); font-weight: 600; line-height: 1.18; letter-spacing: -.028em; }
+.category { margin-top: .2rem; }
+.signals, .detailFacts { display: grid; gap: .65rem; }
+.signals dt, .detailFacts dt, .nextStep strong { font-weight: 600; }
+.signals > div { border-top: 1px solid var(--report-rule); padding-top: .5rem; }
+.cardEnd { display: grid; gap: .65rem; }
+.nextStep strong { display: block; }
+
+.button {
+  display: inline-flex;
+  justify-content: center;
+  align-items: center;
+  gap: .35rem;
+  background: var(--color-butter-yellow);
+}
+
+.cardActions button, .textLink {
+  display: inline-flex;
+  align-items: center;
+  gap: .35rem;
+  min-height: 44px;
+  text-align: start;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+  overflow-wrap: anywhere;
+}
+
+.cardActions button { font-size: .875rem; }
+.cardActions button:hover, .textLink:hover { color: #88232b; text-decoration-thickness: 2px; }
+.checklist { padding-left: 1.2rem; list-style: disc; }
+.empty { padding-block: 1.15rem; }
+.status { margin-top: .4rem; color: var(--report-text-muted); }
+.status:empty { margin-top: 0; }
+
+.disclosure {
+  border-block: 1px solid var(--report-rule);
+  scroll-margin-top: .75rem;
+}
+
+.disclosure + .disclosure { border-top: 0; }
+
+.disclosure summary {
+  position: relative;
+  min-height: 44px;
+  padding-block: .75rem;
+  padding-inline-end: 2rem;
+  font-size: 1.05rem;
+  font-weight: 600;
+  list-style: none;
+}
+
+.disclosure summary::-webkit-details-marker { display: none; }
+.disclosure summary::after {
+  content: "";
+  position: absolute;
+  inset-block-start: 1.15rem;
+  inset-inline-end: .6rem;
+  width: .5rem;
+  height: .5rem;
+  border-inline-end: 2px solid currentColor;
+  border-block-end: 2px solid currentColor;
+  transform: rotate(45deg);
+}
+.disclosure[open] > summary::after { transform: translateY(.2rem) rotate(225deg); }
+.disclosure summary:hover { color: #88232b; }
+.disclosure[open] > summary { border-bottom: 1px solid var(--report-rule); }
+.detail { max-width: 64rem; min-width: 0; padding-bottom: 1.25rem; overflow-wrap: anywhere; }
+.detail:target { scroll-margin-top: .75rem; }
+.detailMeta { margin-bottom: .75rem; }
+.panel { display: grid; gap: .65rem; padding-block: .85rem; }
+.panel + .panel { border-top: 1px solid var(--report-rule); }
+.panel h3 { font: italic 400 1.55rem/1.15 var(--font-editorial); letter-spacing: -.025em; }
+.panel h4 { font-weight: 600; }
+
+.evidence {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+  gap: .55rem;
+}
+
+.evidence li {
+  min-width: 0;
+  border: 1px solid var(--report-rule);
+  padding: .25rem .75rem .65rem;
+  background: #fff9eb;
+}
+
+.evidence p, .candidates p { font-size: .9rem; }
+.candidateGroup + .candidateGroup { margin-top: .55rem; }
+.candidates li { padding-block: .25rem .55rem; border-bottom: 1px solid var(--report-rule); }
+.candidates li div { min-width: 0; }
+.candidates li div > span { display: inline-block; padding-top: .4rem; }
+
+@media (max-width: 36rem) {
+  .card { gap: .85rem; }
+  .cardLabels { justify-content: start; }
+}
+
+@container (min-width: 45rem) {
+  .card { grid-row: span 4; grid-template-rows: subgrid; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .filters button:active, .button:active { transform: none; }
+}
