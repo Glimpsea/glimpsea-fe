@@ -46,6 +46,8 @@
   min-height: 4.75rem;
 }
 
+.masthead { flex-wrap: wrap; }
+
 .masthead nav { display: flex; flex-wrap: wrap; column-gap: clamp(.85rem, 2.6vw, 2.25rem); }
 
 .masthead a, .footer a {
@@ -60,6 +62,11 @@
 a.wordmark {
   font-size: clamp(1.1rem, 2.25vw, 1.55rem);
   letter-spacing: -.07em;
+}
+
+.header-logo {
+  flex-shrink: 0;
+  gap: .5rem;
 }
 
 .header-logo img {
@@ -323,7 +330,9 @@ a.wordmark {
 
 @media (max-width: 640px) {
   .masthead, .footer-inner { min-height: 4rem; }
+  .masthead { row-gap: 0; }
   .masthead a { font-size: .77rem; }
+  .masthead .wordmark { font-size: 1.15rem; }
   .intro h1 { font-size: clamp(2.15rem, 10vw, 4rem); }
   .demo { grid-template-columns: minmax(0, 1fr); }
 }
