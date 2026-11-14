@@ -116,7 +116,7 @@ bun install --frozen-lockfile
 GLIMPSEA_A2A_RESEARCH_MODE=fixture bun run dev
 ```
 
-Open the [local developer demo](http://127.0.0.1:3000/developers), select a category, and run the simulation to see a sample research brief. In another terminal, run `bun run verify:demo` to check the fixture order and delivery. The fixture uses no wallet or API key. On the [hosted developer demo](https://glimpsea.vercel.app/developers), select **Run the simulation** to see a sample brief and a simulated 2.50 USDC payment.
+Open the [local developer demo](http://127.0.0.1:3000/developers), choose a buyer budget, and select **Run order**. A 0.02 NEAR budget unlocks the sample report after simulated payment. A 0.005 NEAR budget declines the same quote. In another terminal, run `bun run verify:demo` to check the fixture order and delivery. The fixture uses no wallet or API key. On the [hosted developer demo](https://glimpsea.vercel.app/developers), the same simulation shows a wedding planner research order for Germany.
 
 To exercise the A2A quote, authorization, and settlement against the local server, run `bun run demo` in a second terminal. The command prints the brief and its JSON block to standard output.
 

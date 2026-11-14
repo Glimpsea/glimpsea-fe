@@ -1,115 +1,102 @@
 "use client";
 
 import { useState } from "react";
-import { domAnimation, LazyMotion, m, MotionConfig } from "framer-motion";
-import { BriefCopy } from "./brief-copy";
-import { CATEGORY_LABELS, PRODUCT_CATEGORIES, type ProductCategory } from "@/lib/a2a";
 
-const steps = ["Get a quote", "Authorize demo payment", "Prepare the brief", "Receive the brief"];
-const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const budgets = [20, 5] as const;
+const quote = 10;
+const near = (milliNear: number) => `${milliNear / 1_000} NEAR`;
+const pause = () => new Promise<void>((resolve) => setTimeout(resolve, 450));
 
 export default function DemoClient() {
-  const [category, setCategory] = useState<ProductCategory>();
-  const [progress, setProgress] = useState(0);
-  const [artifact, setArtifact] = useState("");
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState("");
+  const [budget, setBudget] = useState<number>(budgets[0]);
+  const [step, setStep] = useState(0);
+  const paid = budget >= quote;
+  const running = step > 0 && step < 4;
+  const complete = step === 4;
 
-  async function start() {
-    setRunning(true);
-    setProgress(1);
-    setArtifact("");
-    setError("");
+  const messages = [
+    ["Buyer agent", `Find a digital wedding planner I can make in 3 hours for engaged couples in Germany. My research budget is ${near(budget)}.`],
+    ["Glimpsea Seller Agent", `I can research wedding planner templates for Germany. The quote is ${near(quote)}.`],
+    ["Buyer agent", paid ? "The quote fits my budget. I’ll pay." : "The quote is over my budget. I won’t pay."],
+    ["Glimpsea Seller Agent", paid ? "I verified the simulated payment. Your sample report is ready." : "The order is closed. The report stays locked."],
+  ];
 
-    try {
-      const response = await fetch("/api/buyer-demo", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category }),
-        signal: AbortSignal.timeout(15_000),
-      });
-      const result = await response.json().catch(() => null);
-      if (!response.ok || typeof result?.markdown !== "string" || !result.markdown.trim()) {
-        throw new Error("The sample brief is unavailable. Try again.");
-      }
-      setProgress(2);
-      await delay(350);
-      setProgress(3);
-      await delay(550);
-      setArtifact(result.markdown);
-      setProgress(4);
-    } catch (cause) {
-      setError(cause instanceof Error && cause.name === "TimeoutError"
-        ? "The sample brief took too long to load. Try again."
-        : "The sample brief is unavailable. Try again.");
-    } finally {
-      setRunning(false);
+  async function runOrder() {
+    setStep(1);
+    for (const nextStep of [2, 3, 4]) {
+      await pause();
+      setStep(nextStep);
     }
   }
 
-  const jsonBlock = artifact.match(/^```json[^\S\n]*\n([\s\S]*?)\n```[^\S\n]*$/m);
-  const markdown = jsonBlock ? artifact.replace(jsonBlock[0], "").trim() : artifact.trim();
-  const state = error ? "Stopped" : running ? "In progress" : artifact ? "Complete" : "Ready";
-
   return (
-    <MotionConfig reducedMotion="user">
-      <LazyMotion features={domAnimation}>
-        <section className="demo-band" id="demo" aria-labelledby="demo-title">
-          <div className="demo wrap">
-            <div className="request">
-              <h1 id="demo-title">Buyer agent demo</h1>
-              <p>Follow a sample order for US cafe owners with four hours to make a prototype. The quote and payment are simulated.</p>
-              <div className="landing-tabs demo-options" role="group" aria-label="Product category">
-                <button type="button" aria-pressed={!category} disabled={running} onClick={() => setCategory(undefined)}>Compare all</button>
-                {PRODUCT_CATEGORIES.map((value) => (
-                  <button key={value} type="button" aria-pressed={category === value} disabled={running}
-                    onClick={() => setCategory(value)}>{CATEGORY_LABELS[value]}</button>
-                ))}
-              </div>
-              <button className="run-button" type="button" disabled={running} onClick={start}>
-                {running ? "Preparing sample brief…" : artifact || error ? "Run the simulation again" : "Run the simulation"}
-              </button>
-            </div>
-
-            <div className="order">
-              <div className="section-heading">
-                <h2>Order progress</h2>
-                <span className="state">{state}</span>
-              </div>
-              <progress className="demo-progress" max={4} value={progress} aria-label="Simulation progress" />
-              <ol className="order-steps" aria-label="Order steps">
-                {steps.map((label, index) => (
-                  <li key={label} data-reached={progress > index}><span className="step-name">{label}</span></li>
-                ))}
-              </ol>
-              <p className="visually-hidden" role="status">{running ? steps[progress - 1] : state}</p>
-              {artifact && <div className="receipt"><span>Simulated payment settled</span><strong>2.50 USDC</strong></div>}
-            </div>
+    <>
+      <section className="demo-band" id="demo" aria-labelledby="demo-title">
+        <div className="demo wrap">
+          <div className="request">
+            <h1 id="demo-title">Watch two agents trade</h1>
+            <p>Set the buyer’s budget for wedding planner research in Germany. Watch the agents agree on a price or close the order. This demo uses simulated payments and sample research.</p>
+            <fieldset className="demo-budget" disabled={running}>
+              <legend>Buyer’s research budget</legend>
+              {budgets.map((amount) => (
+                <label key={amount}>
+                  <input type="radio" name="research-budget" checked={budget === amount} onChange={() => {
+                    setBudget(amount);
+                    setStep(0);
+                  }} />
+                  {near(amount)}
+                </label>
+              ))}
+            </fieldset>
+            <button className="run-button" type="button" disabled={running} onClick={runOrder}>
+              {running ? "Order in progress…" : "Run order"}
+            </button>
           </div>
-        </section>
 
-        <section className="brief wrap" id="brief" aria-labelledby="brief-title">
+          <div className="order">
+            <h2>Agent conversation</h2>
+            <ol className="trade-messages" aria-label="Agent messages" aria-live="polite" aria-relevant="additions">
+              {messages.slice(0, step).map(([agent, message], index) => (
+                <li key={agent + index} className={index % 2 === 0 ? "trade-buyer" : "trade-seller"}>
+                  <strong>{agent}</strong>
+                  <p>{message}</p>
+                </li>
+              ))}
+            </ol>
+            {step === 0 && <p>Run the order to see what each agent does.</p>}
+            {complete && (
+              <p className="trade-result" role="status">
+                <strong>{paid ? "Simulated payment verified" : "Order declined"}</strong>
+                <span>{paid ? near(quote) : "No payment sent"}</span>
+              </p>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {complete && paid && (
+        <section className="brief wrap" aria-labelledby="sample-report-title">
           <div className="brief-heading">
-            <h2 id="brief-title">Research brief</h2>
-            {artifact && <span>Sample research data</span>}
+            <h2 id="sample-report-title">Sample report</h2>
+            <span>Limited data</span>
           </div>
-          {error ? <p className="brief-status" role="alert">{error}</p> : artifact ? (
-            <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .25 }}>
-              <BriefCopy markdown={markdown} />
-              {jsonBlock && (
-                <details className="json-details">
-                  <summary>View brief JSON</summary>
-                  <pre><code>{jsonBlock[1]}</code></pre>
-                </details>
-              )}
-            </m.div>
-          ) : (
-            <p className="brief-status">
-              {running ? "Preparing your sample brief." : "Run the simulation to see the sample brief."}
-            </p>
-          )}
+          <h3 className="trade-recommendation">Test a minimalist wedding timeline first.</h3>
+          <p>Start with one editable page that couples can share with their wedding party.</p>
+          <details className="trade-report">
+            <summary>Open sample report</summary>
+            <dl>
+              <dt>What to make</dt>
+              <dd>A German-language timeline with space for the ceremony, photos, dinner, and key contacts.</dd>
+              <dt>Three-hour prototype plan</dt>
+              <dd>Spend two hours on the layout and one hour testing how it looks on a phone and in print.</dd>
+              <dt>What to check before selling</dt>
+              <dd>Show the template to engaged couples in Germany and ask which details they would change or pay for.</dd>
+              <dt>Evidence</dt>
+              <dd>This sample shows the type of advice a report includes. It contains no live Etsy scan or Germany-specific demand data.</dd>
+            </dl>
+          </details>
         </section>
-      </LazyMotion>
-    </MotionConfig>
+      )}
+    </>
   );
 }

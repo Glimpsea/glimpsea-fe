@@ -291,13 +291,16 @@ a.wordmark {
   letter-spacing: -.075em;
 }
 
-.demo-options { margin-block: 1.5rem; }
-.demo-progress {
-  inline-size: 100%;
-  block-size: .45rem;
-  margin-top: 1.25rem;
-  accent-color: var(--color-ink);
+.demo-budget { margin-block: 1.5rem; }
+.demo-budget legend { margin-bottom: .45rem; font-weight: 650; }
+.demo-budget label {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-height: 44px;
+  margin-inline-end: 1.25rem;
 }
+.demo-budget input { accent-color: var(--color-ink); }
 
 .run-button {
   min-height: 50px;
@@ -327,41 +330,22 @@ a.wordmark {
   gap: .7rem 1rem;
 }
 
-.state {
-  font-size: .8rem;
-  font-weight: 600;
+.demo .order h2 { font-size: clamp(1.8rem, 4vw, 2.8rem); margin-bottom: 1rem; }
+.trade-messages { display: grid; gap: .55rem; }
+.trade-messages li {
+  width: min(90%, 35rem);
+  padding: .7rem .9rem;
+  border: 1px solid var(--color-ink);
+  border-radius: .75rem;
+  background: var(--color-pale-pine);
 }
-
-.order-steps {
-  margin-bottom: .7rem;
-  list-style: decimal-leading-zero inside;
-}
-
-.order-steps li {
-  padding-block: .66rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--color-ink) 60%, transparent);
-}
-
-.order-steps li::marker {
-  font-size: .78rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.order-steps li[data-reached="true"] .step-name { font-weight: 600; }
-
-.order-steps li p {
-  margin: .2rem 0 0 1.55rem;
-  overflow-wrap: anywhere;
-  font-size: .9rem;
-}
-
-.receipt {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  gap: .25rem .75rem;
-  font-size: .88rem;
-}
+.trade-messages li p { margin-top: .15rem; }
+.trade-messages .trade-buyer { justify-self: end; background: #fff9eb; }
+.trade-result { display: flex; flex-wrap: wrap; gap: .3rem 1rem; margin-top: .9rem; }
+.trade-recommendation { margin-block: 1rem .35rem; font-weight: 650; }
+.trade-report { margin-top: 1rem; max-width: 65ch; }
+.trade-report summary { min-height: 44px; padding-block: .65rem; cursor: pointer; font-weight: 650; }
+.trade-report dt { margin-top: .85rem; font-weight: 650; }
 
 .brief {
   padding-block: clamp(3.5rem, 8vw, 8rem);

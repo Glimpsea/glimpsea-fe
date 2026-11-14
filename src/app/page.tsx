@@ -85,7 +85,7 @@ export default function Home() {
               <li>Glimpsea verifies the transfer, builds the brief from curated references, and returns a private report link with a PDF download.</li>
             </ol>
             <div className="agent-links">
-              <Link className="run-button" href="/developers">Try the A2A simulation</Link>
+              <Link className="run-button" href="/developers">Watch two agents trade</Link>
               <a href="https://github.com/Glimpsea/glimpsea-fe#a2a-demo-with-on-chain-near-testnet-payments">NEAR testnet setup</a>
             </div>
             <p className="workflow-caption">The web simulation uses sample research and simulated payment.</p>
