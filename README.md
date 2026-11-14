@@ -153,10 +153,11 @@ The brief picked the **shift checklist** for the first test. The sample contains
 
 ### Paid Basic checkout results
 
+- **Hosted Chrome beta from Vercel.** Starting at [the live landing page](https://glimpsea.vercel.app/), a fresh NEAR testnet account used both Basic trials. The third order stayed at zero pages until checkout verified a transfer of **0.010000264068962464 NEAR**. After **Resume research**, the beta read **4 unique listings from 2 pages of Glimpsea’s synthetic sample catalog**. [Hosted checkout receipt](https://testnet.nearblocks.io/txns/J8qfg44W2EAVJKYGqff1YbspyLoipMxoNtZrpL7XEnuY)
 - **Live Etsy in Opera GX.** A test account paid **0.010000925400199157 NEAR** on testnet to research `cafe owner supplies`. The order recorded zero pages before payment verification. After **Resume research**, Basic saved **115 unique live listings from 2 pages** and stopped before page 3. [Live Etsy checkout receipt](https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn)
 - **Checkout retest with simulated pages in Chromium.** The revised panel used a new NEAR testnet transfer and verified its transaction hash before scanning. After **Resume research**, Basic saved **3 unique sample listings from 2 simulated Etsy pages**. [Simulated-pages checkout receipt](https://testnet.nearblocks.io/txns/GQyvdPtdMoVTEncaKUKHXSFB4UrrCDS27eN4Wezw97FT)
 
-In both runs, the signed-in wallet owner opened the private report. The same URLs returned HTTP 404 without a wallet session.
+In every run, the signed-in wallet owner opened the private report. The same URLs returned HTTP 404 without a wallet session.
 
 ## Verify checkout with a test transfer
 
