@@ -4,16 +4,17 @@ const origin = typeof GLIMPSEA_ORIGIN === "string" ? GLIMPSEA_ORIGIN : "http://1
 const backend = new URL(origin);
 const catalogMatch = `${backend.protocol}//${backend.hostname}/demo-catalog*`;
 const reloadButton = document.querySelector("#reload-panel");
-const catalogButton = document.querySelector("#open-catalog");
 const form = document.querySelector("#research");
 const options = document.querySelector("#research-options");
 const startButton = document.querySelector("#start-analysis");
+const newSearchButton = document.querySelector("#new-search");
 const etsyKeyword = document.querySelector("#etsy-keyword");
-const keywordError = document.querySelector("#keyword-error");
-const allowEtsyButton = document.querySelector("#allow-etsy");
-const openEtsyButton = document.querySelector("#open-etsy");
+const keywordHint = document.querySelector("#keyword-hint");
+const useEtsyKeyword = document.querySelector("#use-etsy-keyword");
+const trialAccess = document.querySelector("#trial-access");
+const paidAccess = document.querySelector("#paid-access");
+const paidLabel = document.querySelector("#paid-label");
 const accessNote = document.querySelector("#access-note");
-const reportScope = document.querySelector("#report-scope");
 const reportButton = document.querySelector("#open-report");
 const paymentReceipt = document.querySelector("#payment-receipt");
 const checkoutButton = document.querySelector("#checkout");
@@ -46,16 +47,17 @@ let token;
 let accountId;
 let mode;
 let working = false;
+let verifiedPaymentId;
 let openingOpportunity = false;
 let connectingWallet = false;
 let needsWalletForOrder = false;
 let walletWait;
 let walletView;
-let etsyTabKeyword = "";
+let tabKeyword = "";
+let editedKeyword = false;
+let selectedAccess = "trial";
 let etsyReadVersion = 0;
-const sampleKeyword = form.elements.keyword.defaultValue;
 const etsyPermission = { origins: ["https://www.etsy.com/*"] };
-const startingPrices = { basic: "0.01", medium: "0.03", deep: "0.06" };
 
 async function request(path, data) {
   const response = await fetch(origin + path, {
@@ -86,10 +88,6 @@ function etsySearch(url) {
   if (parsed?.origin === "https://www.etsy.com" && parsed.pathname === "/search") return parsed;
 }
 
-function liveSelected() {
-  return Boolean(mode?.etsyLive && form.elements.source.value === "etsy");
-}
-
 function pendingJob() {
   return activeJob && !["complete", "failed"].includes(activeJob.state);
 }
@@ -97,8 +95,10 @@ function pendingJob() {
 function updateControls() {
   reloadButton.disabled = working || openingOpportunity || connectingWallet;
   options.disabled = working || openingOpportunity || connectingWallet || needsWalletForOrder || Boolean(pendingJob());
+  newSearchButton.hidden = !mode?.etsyLive || (!pendingJob() && !needsWalletForOrder);
+  newSearchButton.disabled = working || openingOpportunity || connectingWallet;
   startButton.disabled = working || openingOpportunity || connectingWallet
-    || (liveSelected() && !pendingJob() && !needsWalletForOrder && !etsyTabKeyword);
+    || (!mode?.etsyLive && !pendingJob() && !needsWalletForOrder);
   opportunityFields.disabled = working || openingOpportunity || connectingWallet;
   const custom = opportunityForm.elements.topic.value === "custom";
   const sample = activeJob?.collection === "etsy" && activeJob.state === "complete" ? activeJob : null;
@@ -113,90 +113,49 @@ function updateControls() {
   form.noValidate = Boolean(pendingJob()) || needsWalletForOrder;
   if (needsWalletForOrder) {
     startButton.textContent = accountId ? "Resume research" : "Connect wallet";
-  } else if (!pendingJob() && mode?.guestTrials) {
-    const paid = form.elements.access.value === "testnet-payment";
+  } else if (!pendingJob()) {
+    const paid = paidAccess.checked && mode?.nearTestnet;
     startButton.textContent = paid ? (accountId ? "Open checkout" : "Connect wallet")
       : activeJob?.state === "complete" ? "Start another search" : "Start analysis";
   }
   startButton.classList.toggle("secondary", !checkoutButton.hidden || !reportButton.hidden);
 }
 
-function updateScope() {
-  if (!liveSelected()) return;
-  const keyword = pendingJob() ? activeJob.keyword : etsyTabKeyword;
-  const cafe = /\b(?:caf[eé]|coffee shop|barista)\b/i;
-  reportScope.hidden = !keyword;
-  reportScope.textContent = cafe.test(keyword) && cafe.test(form.elements.audience.value)
-    ? "Your report includes captured listings, prices, and cafe ideas."
-    : "Your report includes captured listings and displayed prices.";
-}
-
 async function updateEtsyKeyword() {
   const version = ++etsyReadVersion;
-  if (!liveSelected()) return;
+  if (!mode?.etsyLive || pendingJob() || needsWalletForOrder || working) return;
   const granted = await chrome.permissions.contains(etsyPermission);
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  if (version !== etsyReadVersion || !liveSelected()) return;
-  const keyword = etsySearch(tab?.url)?.searchParams.get("q") ?? "";
-  etsyTabKeyword = keyword.trim() && keyword.length <= 120 ? keyword : "";
-  if (pendingJob()) {
-    etsyKeyword.textContent = activeJob.keyword;
-  } else if (etsyTabKeyword) {
-    etsyKeyword.textContent = etsyTabKeyword;
-  } else {
-    etsyKeyword.textContent = !granted ? "Allow access to show the keyword from your Etsy tab."
-      : keyword.length > 120 ? "Use an Etsy keyword of 120 characters or fewer."
-      : "Open Etsy search results in this window.";
-  }
-  allowEtsyButton.hidden = granted || Boolean(pendingJob());
-  openEtsyButton.hidden = !granted || Boolean(etsyTabKeyword) || Boolean(pendingJob());
-  updateScope();
-  updateControls();
+  if (version !== etsyReadVersion || pendingJob() || needsWalletForOrder || working) return;
+  const keyword = etsySearch(tab?.url)?.searchParams.get("q")?.trim() ?? "";
+  tabKeyword = keyword.length <= 120 ? keyword : "";
+  if (tabKeyword && !editedKeyword) etsyKeyword.value = tabKeyword;
+  keywordHint.textContent = tabKeyword
+    ? `Etsy tab is searching for “${tabKeyword}”.`
+    : granted ? "Glimpsea will open Etsy results for this keyword."
+      : "When you start, allow Etsy access so Glimpsea can read the results.";
+  useEtsyKeyword.hidden = !tabKeyword || etsyKeyword.value.trim() === tabKeyword;
 }
 
 function showReadyStatus() {
   status.textContent = "";
 }
 
-function clearKeywordError() {
-  keywordError.hidden = true;
-  form.elements.keyword.removeAttribute("aria-invalid");
-}
-
-async function updateSource() {
-  const live = liveSelected();
-  for (const [id, name] of [["catalog-keyword", "keyword"], ["category-field", "category"], ["plan-field", "plan"]]) {
-    document.getElementById(id).hidden = live;
-    form.elements[name].disabled = live;
-  }
-  for (const id of ["etsy-search", "etsy-plan"]) document.getElementById(id).hidden = !live;
-  catalogButton.hidden = live;
-  clearKeywordError();
-  if (!live) reportScope.hidden = true;
-  document.querySelector("#demo-note").textContent = live
-    ? "Read listings from the Etsy search beside this panel."
-    : "Try Glimpsea with a sample catalog.";
-  syncAccess();
-  await updateEtsyKeyword();
-  updateControls();
-}
-
-async function activeEtsyTab() {
+async function openEtsySearch(job) {
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
   const url = etsySearch(tab?.url);
-  if (!url?.searchParams.get("q")?.trim()) {
-    throw new Error("Open an Etsy search results page in this window and try again.");
-  }
-  return { tab, url };
+  const target = job.nextUrl ?? `https://www.etsy.com/search?${new URLSearchParams({ q: job.keyword })}`;
+  if (!url) return chrome.tabs.create({ url: target, active: true });
+  return url.searchParams.get("q") === job.keyword && (url.searchParams.get("page") ?? "1") === String(job.pages + 1)
+    ? tab : chrome.tabs.update(tab.id, { url: target });
 }
 
 async function scanEtsy(job) {
-  const { tab, url } = await activeEtsyTab();
-  let target = job.nextUrl;
-  if (job.pages === 0 && (url.searchParams.get("q") !== job.keyword || ![null, "1"].includes(url.searchParams.get("page")))) {
-    url.search = new URLSearchParams({ q: job.keyword }).toString();
-    target = url.href;
+  if (!await chrome.permissions.contains(etsyPermission)) {
+    throw new Error("Select Resume research and allow Etsy access to read the results.");
   }
+  const tab = await openEtsySearch(job);
+  let target;
   showCaptures(job);
   status.scrollIntoView({ block: "start" });
   while (job.state === "browsing" && job.pages < job.limit) {
@@ -218,7 +177,13 @@ async function readEtsy(tabId, page, keyword) {
   let stableSince = 0;
   while (Date.now() < deadline) {
     const tab = await chrome.tabs.get(tabId);
-    if (!etsySearch(tab.url)) throw new Error("Return to the Etsy search results tab and select Resume research.");
+    if (!etsySearch(tab.url)) {
+      if (etsySearch(tab.pendingUrl) || tab.status === "loading") {
+        await sleep(500);
+        continue;
+      }
+      throw new Error("Return to the Etsy search results tab and select Resume research.");
+    }
     // During pagination Opera can still report the previous URL or a loading tab.
     // The injected reader checks the current document and its results instead.
     const [injection] = await chrome.scripting.executeScript({
@@ -228,6 +193,9 @@ async function readEtsy(tabId, page, keyword) {
       return [];
     });
     const capture = injection?.result;
+    if (capture?.blocked) {
+      throw new Error("Etsy restricted access. Research is paused. Resume once the search results are visible in your Etsy tab.");
+    }
     if (capture?.listings.length) {
       const ids = capture.listings.map((listing) => listing.listingId).join(",");
       if (ids !== previousIds) {
@@ -314,14 +282,11 @@ async function scanCatalog(job) {
 }
 
 function syncAccess() {
-  const trial = form.elements.access.options[0];
-  const plan = liveSelected() ? "basic" : form.elements.plan.value;
-  trial.disabled = trial.dataset.empty === "1" || plan !== "basic";
-  if (trial.disabled) form.elements.access.selectedIndex = 1;
-  else if (form.elements.access.dataset.intent !== "paid") form.elements.access.selectedIndex = 0;
+  trialAccess.checked = !trialAccess.disabled && selectedAccess === "trial";
+  paidAccess.checked = !trialAccess.checked;
   accessNote.hidden = Boolean(pendingJob());
-  accessNote.textContent = form.elements.access.selectedIndex === 0 ? "Uses 1 Basic trial."
-    : mode.nearTestnet ? `From ${startingPrices[plan]} NEAR on testnet. See the exact amount at checkout.`
+  accessNote.textContent = trialAccess.checked ? "Start without a wallet."
+    : mode.nearTestnet ? "0.01 testnet NEAR. Review the payment in checkout."
     : "Simulated payment. No funds move.";
   updateControls();
 }
@@ -329,7 +294,7 @@ function syncAccess() {
 async function refresh() {
   const { remaining } = await call("trials");
   trials.textContent = `${remaining} Basic ${remaining === 1 ? "trial" : "trials"} left${accountId && !mode.guestTrials ? " on this NEAR account" : " in this browser"}.`;
-  form.elements.access.options[0].dataset.empty = remaining === 0 ? "1" : "0";
+  trialAccess.disabled = remaining === 0;
   syncAccess();
   if (!mode.nearTestnet) return;
   const { jobs } = await call("jobs");
@@ -365,9 +330,10 @@ async function run(job) {
   activeJob = job;
   paymentReceipt.hidden = !job.checkout?.txHash;
   if (job.checkout?.txHash) paymentReceipt.href = `https://testnet.nearblocks.io/txns/${job.checkout.txHash}`;
-  if (pendingJob() && mode.etsyLive && job.collection) {
-    form.elements.source.value = job.collection;
-    await updateSource();
+  if (job.collection === "etsy" && pendingJob()) {
+    etsyKeyword.value = job.keyword;
+    useEtsyKeyword.hidden = true;
+    keywordHint.textContent = "This keyword is saved for the current order.";
   }
   if (job.listings) showCaptures(job);
   else scanResults.hidden = true;
@@ -414,33 +380,29 @@ async function run(job) {
 async function withProgress(work) {
   if (working || openingOpportunity) return;
   working = true;
-  clearKeywordError();
-  catalogButton.disabled = true;
   checkoutButton.hidden = true;
   reportButton.hidden = true;
   updateControls();
   try {
-    await work();
+    const result = await work();
     await refresh();
+    return result;
   } catch (error) {
     if (error.status === 401 && mode.nearTestnet && token) {
       await resetWallet(false);
     }
-    if (error.message.startsWith("No results in the sample catalog")) {
-      keywordError.textContent = error.message;
-      keywordError.hidden = false;
-      form.elements.keyword.setAttribute("aria-invalid", "true");
-      form.elements.keyword.scrollIntoView({ block: "nearest" });
-      status.textContent = "Update the keyword and try again.";
-    } else {
-      status.textContent = error.message;
-      status.scrollIntoView({ block: "nearest" });
-    }
+    status.textContent = error.message;
+    status.scrollIntoView({ block: "nearest" });
     await refresh().catch(() => {});
   } finally {
     working = false;
     updateControls();
-    catalogButton.disabled = false;
+    void updateEtsyKeyword().catch(() => {});
+    if (verifiedPaymentId) {
+      const id = verifiedPaymentId;
+      verifiedPaymentId = undefined;
+      void withProgress(async () => run(await call("status", { id })));
+    }
   }
 }
 
@@ -450,12 +412,10 @@ async function showWallet() {
   connectButton.hidden = Boolean(accountId) || mode.guestTrials;
   logoutButton.hidden = !accountId;
   form.hidden = opportunities.hidden = !accountId && !mode.guestTrials;
-  form.elements.access.options[1].textContent = "Pay on NEAR testnet";
-  form.elements.access.options[1].value = "testnet-payment";
-  if (accountId || mode.guestTrials) await updateSource();
-  else document.querySelector("#demo-note").textContent = mode.etsyLive
-    ? "Read Etsy listings and open your private report."
-    : "Try Glimpsea with a sample catalog.";
+  paidLabel.textContent = "Pay on NEAR testnet";
+  paidAccess.value = "testnet-payment";
+  await updateEtsyKeyword();
+  syncAccess();
 }
 
 async function resetWallet(revoke = true) {
@@ -519,13 +479,12 @@ window.addEventListener("message", (event) => {
   } else if (event.data?.type === "glimpsea-wallet-signed" && event.data.id === walletView.pair) {
     walletWait?.resolve();
   } else if (event.data?.type === "glimpsea-payment-verified" && event.data.id === walletView.checkout) {
-    const hash = event.data.hash;
-    if (typeof hash !== "string" || !/^[1-9A-HJ-NP-Za-km-z]{40,48}$/.test(hash)) return;
-    paymentReceipt.href = `https://testnet.nearblocks.io/txns/${hash}`;
-    paymentReceipt.hidden = false;
+    const id = walletView.checkout;
     closeWalletView();
     startButton.textContent = "Resume research";
-    status.textContent = "Payment verified. Select Resume research.";
+    status.textContent = "Payment verified. Starting research…";
+    if (working) verifiedPaymentId = id;
+    else void withProgress(async () => run(await call("status", { id })));
   }
 });
 
@@ -581,21 +540,25 @@ async function connectWallet(savedPair) {
 
 reloadButton.addEventListener("click", () => window.location.reload());
 
-catalogButton.addEventListener("click", () => {
-  const keyword = form.elements.keyword.value.trim();
-  const query = new URLSearchParams({ keyword: keyword || sampleKeyword, page: "1" });
-  void showCatalog(`${origin}/demo-catalog?${query}`).catch((error) => { status.textContent = error.message; });
+newSearchButton.addEventListener("click", () => {
+  void withProgress(async () => {
+    await chrome.storage.local.remove(["glimpseaJob", "glimpseaJobRequiresWallet"]);
+    if (walletView) closeWalletView();
+    activeJob = undefined;
+    needsWalletForOrder = false;
+    editedKeyword = true;
+    etsyKeyword.value = "";
+    paymentReceipt.hidden = true;
+    scanResults.hidden = true;
+    showReadyStatus();
+  }).then(() => etsyKeyword.focus());
 });
-allowEtsyButton.addEventListener("click", () => {
-  void chrome.permissions.request(etsyPermission).then(async (granted) => {
-    await updateEtsyKeyword();
-    if (!granted) status.textContent = "Allow Etsy access to read the search keyword and listing cards.";
-    else showReadyStatus();
-  }).catch((error) => { status.textContent = error.message; });
-});
-openEtsyButton.addEventListener("click", () => {
-  const query = new URLSearchParams({ q: sampleKeyword });
-  void chrome.tabs.create({ url: `https://www.etsy.com/search?${query}` });
+
+useEtsyKeyword.addEventListener("click", () => {
+  editedKeyword = false;
+  etsyKeyword.value = tabKeyword;
+  useEtsyKeyword.hidden = true;
+  etsyKeyword.focus();
 });
 function refreshActiveSearch() {
   void updateEtsyKeyword().catch((error) => { status.textContent = error.message; });
@@ -607,26 +570,30 @@ chrome.tabs.onUpdated.addListener((_id, change, tab) => {
 chrome.permissions.onRemoved.addListener(refreshActiveSearch);
 connectButton.addEventListener("click", () => void connectWallet());
 logoutButton.addEventListener("click", () => void resetWallet().catch((error) => { status.textContent = error.message; }));
-form.elements.plan.addEventListener("change", syncAccess);
-form.elements.access.addEventListener("change", () => {
-  form.elements.access.dataset.intent = form.elements.access.selectedIndex === 0 ? "trial" : "paid";
+form.addEventListener("change", (event) => {
+  if (event.target.name !== "access") return;
+  selectedAccess = event.target.value;
+  showReadyStatus();
   syncAccess();
 });
-form.elements.audience.addEventListener("input", updateScope);
-form.elements.keyword.addEventListener("input", clearKeywordError);
-form.elements.source.addEventListener("change", () => {
-  showReadyStatus();
-  void updateSource().catch((error) => { status.textContent = error.message; });
+etsyKeyword.addEventListener("input", () => {
+  editedKeyword = true;
+  useEtsyKeyword.hidden = !tabKeyword || etsyKeyword.value.trim() === tabKeyword;
 });
 form.addEventListener("submit", (event) => {
   event.preventDefault();
-  if (working || connectingWallet) return;
+  if (working || connectingWallet || startButton.disabled) return;
   const input = Object.fromEntries(new FormData(form));
+  input.keyword = etsyKeyword.value.trim();
+  input.audience = form.elements.audience.value.trim();
   input.productionHours = Number(input.productionHours);
-  if (!input.category) delete input.category;
-  const live = liveSelected();
-  const displayedKeyword = etsyTabKeyword;
-  const permission = live ? chrome.permissions.request(etsyPermission) : undefined;
+  if (!pendingJob() && !needsWalletForOrder && (!input.keyword || !input.audience)) {
+    status.textContent = "Enter an Etsy keyword and target buyers.";
+    (input.keyword ? form.elements.audience : etsyKeyword).focus();
+    return;
+  }
+  const permission = mode.etsyLive && (!pendingJob() || activeJob.collection === "etsy")
+    ? chrome.permissions.request(etsyPermission) : undefined;
   void withProgress(async () => {
     if (permission && !await permission) throw new Error("Allow Etsy access to read the active search results tab.");
     const { glimpseaJob, glimpseaJobRequiresWallet } = await chrome.storage.local.get(["glimpseaJob", "glimpseaJobRequiresWallet"]);
@@ -636,29 +603,22 @@ form.addEventListener("submit", (event) => {
         if (!accountId) return;
       }
       const job = await call("status", { id: glimpseaJob });
-      if (job.state !== "awaiting-payment" && walletView?.checkout === job.id) closeWalletView();
-      await run(job);
-      if (mode.guestTrials && job.state === "awaiting-payment") openWalletView({ checkout: job.id });
-      return;
-    }
-    const collection = live ? "etsy" : "dom";
-    if (collection === "etsy") {
-      const { url } = await activeEtsyTab();
-      if (url.searchParams.get("q") !== displayedKeyword) {
-        await updateEtsyKeyword();
-        throw new Error("The Etsy keyword changed. Check it here before starting research.");
+      if (job.state !== "awaiting-payment" && walletView?.checkout === job.id) {
+        verifiedPaymentId = undefined;
+        closeWalletView();
       }
-      input.keyword = url.searchParams.get("q");
-      input.plan = "basic";
+      await run(job);
+      return job;
     }
     if (input.access === "testnet-payment" && mode.guestTrials && !accountId) {
       await connectWallet();
       if (!accountId) return;
     }
-    await run(await call("start", { ...input, collection }));
-    if (input.access === "testnet-payment" && mode.guestTrials && activeJob?.state === "awaiting-payment") {
-      openWalletView({ checkout: activeJob.id });
-    }
+    const job = await call("start", { ...input, plan: "basic", collection: "etsy", paymentProtocol: "contract-v1" });
+    await run(job);
+    return job;
+  }).then((job) => {
+    if (mode.guestTrials && job?.state === "awaiting-payment") openWalletView({ checkout: job.id });
   });
 });
 
@@ -734,18 +694,8 @@ startButton.disabled = true;
   const configuration = await fetch(`${origin}/api/extension-demo${supportsEtsy ? "?etsy=1" : ""}`, { cache: "no-store" });
   if (!configuration.ok) throw new Error("Glimpsea configuration is unavailable.");
   mode = await configuration.json();
-  const [activeTab] = await chrome.tabs.query({ currentWindow: true, active: true });
-  if (mode.etsyLive) {
-    document.querySelector("#source-field").hidden = false;
-    form.elements.source.value = activeTab && isCatalog(activeTab) ? "dom" : "etsy";
-  } else {
-    form.elements.source.value = "dom";
+  if (!mode.etsyLive) {
     opportunityForm.querySelector('option[value="custom"]').hidden = true;
-  }
-  if (!liveSelected()) form.elements.audience.value = "US cafe owners";
-  if (activeTab && isCatalog(activeTab)) {
-    const keyword = new URL(activeTab.url).searchParams.get("keyword");
-    if (keyword) form.elements.keyword.value = keyword.slice(0, 120);
   }
   if (mode.guestTrials || !mode.nearTestnet && mode.simulation) {
     owner = saved.glimpseaOwner ?? crypto.randomUUID();
@@ -766,7 +716,7 @@ startButton.disabled = true;
   } else if (mode.simulation) {
     form.hidden = false;
     opportunities.hidden = false;
-    await updateSource();
+    await updateEtsyKeyword();
   } else {
     throw new Error("This Glimpsea server is not accepting research requests.");
   }
@@ -787,7 +737,8 @@ startButton.disabled = true;
     await chrome.storage.local.remove(["glimpseaJob", "glimpseaJobRequiresWallet"]);
   }
   await refresh();
-  showReadyStatus();
+  if (mode.etsyLive) showReadyStatus();
+  else status.textContent = "Etsy research is unavailable on this server.";
   if (saved.glimpseaLastReport) {
     activeJob = await call("status", { id: saved.glimpseaLastReport }).catch(() => undefined);
     if (activeJob?.checkout?.txHash) {

@@ -16,7 +16,6 @@
         <h1><img src="glimpsea-logo.svg" alt="" width="58" height="32"> Glimpsea</h1>
         <button id="reload-panel" class="secondary reload-panel" type="button" title="Reload the Glimpsea panel">Reload</button>
       </div>
-      <p id="demo-note">Run a search and open your private report.</p>
     </header>
     <div id="wallet" class="panel-surface" hidden>
       <p id="wallet-status"></p>
@@ -34,28 +33,17 @@
       <button id="open-report" type="button" hidden>Open your report</button>
     </div>
     <form id="research" class="panel-surface spotlight-card" aria-labelledby="research-heading" hidden>
-      <h2 id="research-heading">Run a search</h2>
+      <h2 id="research-heading">Research Etsy</h2>
       <fieldset id="research-options">
-        <label id="source-field" hidden>Search source
-          <select name="source">
-            <option value="etsy">Etsy live search</option>
-            <option value="dom">Sample catalog</option>
-          </select>
-        </label>
-        <div id="etsy-search" class="search-source" hidden>
-          <p class="field-name">Keyword from the Etsy tab</p>
-          <p id="etsy-keyword"></p>
-          <button id="allow-etsy" class="secondary" type="button" hidden>Allow Etsy access</button>
-          <button id="open-etsy" class="secondary" type="button" hidden>Open example Etsy search</button>
+        <div class="search-source">
+          <label for="etsy-keyword">Etsy keyword</label>
+          <input id="etsy-keyword" name="keyword" placeholder="e.g. Game wall art" required maxlength="120" aria-describedby="keyword-hint">
+          <p id="keyword-hint" role="status">Type a keyword or use the search open in your Etsy tab.</p>
+          <button id="use-etsy-keyword" class="secondary" type="button" hidden>Use Etsy tab keyword</button>
         </div>
-        <label id="catalog-keyword">Keyword
-          <input name="keyword" value="cafe owner supplies" required maxlength="120" aria-describedby="keyword-error">
-        </label>
-        <p id="keyword-error" role="alert" hidden></p>
-        <button id="open-catalog" class="secondary" type="button">Open sample catalog</button>
         <div class="research-details">
-          <label>Target buyers in the US
-            <input name="audience" placeholder="e.g. Cafe owners" required maxlength="180">
+          <label>Target buyer
+            <input name="audience" placeholder="Cafe owners in US" required maxlength="180">
           </label>
           <div class="research-time">
             <label for="production-hours">Time to make it</label>
@@ -65,35 +53,19 @@
             </div>
           </div>
         </div>
-        <label id="category-field">Category
-          <select name="category">
-            <option value="">Compare all three</option>
-            <option value="digital">Digital</option>
-            <option value="pod">Print-on-demand</option>
-            <option value="personalized">Simple personalization</option>
-          </select>
-        </label>
-        <label id="plan-field">Package
-          <select name="plan">
-            <option value="basic">Basic · up to 2 pages</option>
-            <option value="medium">Medium · up to 5 pages</option>
-            <option value="deep">Deep · up to 10 pages</option>
-          </select>
-        </label>
-        <p id="report-scope" hidden></p>
-        <div class="research-payment">
-          <p id="etsy-plan" hidden><strong>Basic</strong> · Up to 2 Etsy results pages</p>
-          <label>Research access
-            <select name="access" aria-describedby="trials access-note">
-              <option value="trial">Use one Basic trial</option>
-              <option value="simulated-payment">Simulate payment</option>
-            </select>
-          </label>
+        <fieldset class="research-payment" aria-describedby="trials access-note">
+          <legend>Research access</legend>
+          <!-- React Bits Jelly Radio, adapted with native radio inputs. -->
+          <div class="access-options">
+            <label><input type="radio" name="access" id="trial-access" value="trial" checked> <span>Use Basic trial</span></label>
+            <label><input type="radio" name="access" id="paid-access" value="simulated-payment"> <span id="paid-label">Simulate payment</span></label>
+          </div>
           <p id="trials"></p>
-        </div>
+        </fieldset>
       </fieldset>
       <div class="form-actions">
         <button id="start-analysis" type="submit">Start analysis</button>
+        <button id="new-search" class="secondary" type="button" hidden>Search a different keyword</button>
         <p id="access-note" hidden></p>
       </div>
     </form>

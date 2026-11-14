@@ -11,16 +11,22 @@ catalog beta, use `GLIMPSEA_RESEARCH_MODE=fixture` and leave
 `GLIMPSEA_ETSY_LIVE_BASIC` off. The downloadable sample build requests access to
 its backend only.
 
+For contract checkout, set `GLIMPSEA_NEAR_CHECKOUT_CONTRACT` to
+`checkout-v1.glimpsea-d15aafd4df.testnet` and mount the corresponding Ed25519 PEM
+read-only at `GLIMPSEA_NEAR_QUOTE_KEY_FILE`. The server compares its public key
+with the contract before signing. The extension contains only the backend
+origin. The legacy receiver remains configured for older extension builds.
+
 Build the downloadable ZIP from a clean release checkout.
 
 ```sh
-node release/package-extension.mjs https://your-dalang-host glimpsea-chrome-v0.1.4-sample.zip
+node release/package-extension.mjs https://your-dalang-host glimpsea-chrome-v0.1.5-sample.zip
 ```
 
 For the Etsy live release, set `GLIMPSEA_ETSY_LIVE_BASIC=1` and include the Etsy permissions in the ZIP.
 
 ```sh
-node release/package-extension.mjs https://your-dalang-host glimpsea-chrome-v0.1.4.zip etsy-live
+node release/package-extension.mjs https://your-dalang-host glimpsea-chrome-v0.1.5.zip etsy-live
 ```
 
 Upload the packaged ZIP as an asset on a public GitHub Release and use its
@@ -39,5 +45,5 @@ The Dalang ingress should expose the following routes on the same HTTPS origin.
 The backend can stay bound to the loopback interface behind Nginx. Keep
 `Host` and `X-Forwarded-Proto` in the proxy configuration.
 
-The current download for the Vercel landing page is the [v0.1.4 GitHub Release ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.4/glimpsea-chrome-v0.1.4.zip).
+The current download for the Vercel landing page is the [v0.1.5 GitHub Release ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.5/glimpsea-chrome-v0.1.5.zip).
 Use **Download Glimpsea extension** as the button label.

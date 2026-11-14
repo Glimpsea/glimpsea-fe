@@ -8,12 +8,12 @@ The team's other NEAR HACKATHON project is [AgSurance](https://github.com/AgSura
 
 ## Install the Glimpsea extension
 
-1. [Download the Glimpsea v0.1.4 extension ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.4/glimpsea-chrome-v0.1.4.zip) and extract it.
+1. [Download the Glimpsea v0.1.5 extension ZIP](https://github.com/Glimpsea/glimpsea-fe/releases/download/v0.1.5/glimpsea-chrome-v0.1.5.zip) and extract it.
 2. On desktop, open `chrome://extensions` in Chrome, `opera://extensions` in Opera GX, or `brave://extensions` in Brave. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the extracted `glimpsea` folder.
 4. Open **Glimpsea Research** from your browser’s extensions menu.
 
-Search on Etsy, then open Glimpsea beside the search results. Select **Etsy live search** and **Allow Etsy access** if prompted. The panel reads the keyword from your active tab. Add your target buyers and the hours available to make a first product. Select **Use one Basic trial** and **Start analysis**. Glimpsea reads up to two pages. When it finishes, select **Open your report**. To update an existing installation, extract the new ZIP over the installation folder and reload Glimpsea from your browser’s extensions page. This keeps your trials and reports in the same browser profile.
+Search on Etsy, then open Glimpsea beside the search results. Allow Etsy access if prompted. Use the keyword from your active tab or enter a different one in **Etsy keyword**. Add your target buyers and the hours available to make a first product. Select **Use Basic trial** and **Start analysis**. Glimpsea reads up to two pages. When it finishes, select **Open your report**. To update an existing installation, extract the new ZIP over the installation folder and reload Glimpsea from your browser’s extensions page. This keeps your trials and reports in the same browser profile.
 
 ## Run the extension locally
 
@@ -21,15 +21,17 @@ Install Chrome, Node.js 22.22.2 or later, and Bun.
 
 1. Clone this repository. Run `bun install` in its root directory.
 2. If `.env.local` is missing, copy `.env.example` to `.env.local`.
-3. Set `GLIMPSEA_NEAR_TESTNET_RECEIVER` in `.env.local` to a payment receiver on NEAR testnet. Use a different funded testnet account to pay.
+3. For contract checkout, set `GLIMPSEA_NEAR_CHECKOUT_CONTRACT` to your testnet checkout account and `GLIMPSEA_NEAR_QUOTE_KEY_FILE` to the matching issuer key's PEM file. Legacy checkout also uses `GLIMPSEA_NEAR_TESTNET_RECEIVER`. Use a different funded testnet account to pay.
 4. Start the local extension server on port 3045.
 
    ```sh
-   GLIMPSEA_EXTENSION_NEAR_TESTNET=1 GLIMPSEA_RESEARCH_MODE=fixture bun run dev --port 3045
+   GLIMPSEA_EXTENSION_NEAR_TESTNET=1 GLIMPSEA_ETSY_LIVE_BASIC=1 GLIMPSEA_RESEARCH_MODE=fixture bun run dev --port 3045
    ```
 
 5. Open `chrome://extensions`. Turn on **Developer mode** and select **Load unpacked**.
 6. Select the `extension` folder in the repository. Open **Glimpsea Research Demo** from the Chrome extensions menu.
+
+In the current source, type any keyword in **Etsy keyword** or use the keyword from your Etsy search tab. Enter a **Target buyer**, then choose **Use Basic trial** or **Pay on NEAR testnet**. Glimpsea opens the matching Etsy results when research starts.
 
 ## Find product opportunities
 
@@ -47,15 +49,15 @@ In Opera GX, a NEAR testnet account used a Basic trial to search Etsy live for `
 
 ## Testnet wallet and checkout
 
-1. Open the side panel. Keep the sample keyword, US cafe owners, and four-hour limit in fixture mode.
-2. Choose **Basic** and **Use one Basic trial**. Start research and open the private report. Run a second Basic trial.
+1. Open the side panel and enter your Etsy keyword, target buyer, and production time.
+2. Choose **Use Basic trial** to run a search without a wallet.
 3. Select **Pay on NEAR testnet**, then **Connect wallet**. Choose a wallet in the panel and sign the login message. If you already connected your wallet, select **Open checkout**. Some wallets open their own approval window.
-4. Review the quote and approve the transfer. The order stays locked until Glimpsea verifies the exact finalized transfer.
-5. Select **Resume research** in the side panel. Open the report when it is ready.
+4. Review the quote and select **Pay with testnet NEAR**. Approve the 0.01 NEAR contract call in your wallet. The order stays locked until Glimpsea verifies the finalized payment.
+5. The side panel starts research after verification. Select **Open your report** when it is ready.
 
 The two Basic trials and their private reports belong to this browser profile. The panel keeps the Glimpsea session for later payments until it expires or you disconnect from Glimpsea. Paid orders and reports belong to the NEAR testnet account that paid.
 
-Basic, Medium, and Deep scan up to 2, 5, and 10 pages. Their testnet prices start at 0.01, 0.03, and 0.06 NEAR. Each quote adds a small unique amount. If your wallet redirects after payment, paste the transaction hash in checkout. The same hash can confirm the same order again.
+Basic reads up to two Etsy results pages and costs exactly 0.01 testnet NEAR with contract checkout. NEAR Connect calls `pay()` with a quote for the order. Glimpsea unlocks research once `get_payment` returns the matching payment at finality. **Check payment** can recover a submitted order without a transaction hash. Earlier orders created as direct transfers can still use **Already paid?**.
 
 The checkout test completed two Basic trials, then used a transfer of `0.010000333482111037 NEAR` on testnet to unlock the third job. [Third research payment on NEAR testnet](https://testnet.nearblocks.io/txns/P93USZtc2iAbELrBuKoy1ddjSm9w4jnmARF6PncqehJ)
 
@@ -100,19 +102,13 @@ Run `bun scripts/verify-research.ts` to test the wall art and cross-category che
 
 If you start the server in Cloud mode without an API key, run `bun run verify:demo --missing-cloud-key`. This checks that a research failure releases the simulated authorization.
 
-## Test the extension in simulation mode
+## Test the sample catalog API
 
 Run the local server from this directory:
 
 ```sh
 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_RESEARCH_MODE=fixture bun run dev --port 3045
 ```
-
-Load or reload the repository’s `extension` folder as described in [Run the extension locally](#run-the-extension-locally). Open the [local Etsy search simulation](http://127.0.0.1:3045/demo-catalog?keyword=cafe+owner+supplies&page=1), then click the Glimpsea toolbar icon to open the side panel beside it. Choose **Basic** and click **Start analysis**. Glimpsea highlights cards as it reads them, follows **Next page**, and updates the panel with titles, active prices, and links. Basic stops after two pages or when results end. A listing repeated on another page counts once. Open the private report from the panel to see the analysis.
-
-Select **Simulate payment** to try Medium (up to five pages) or Deep (up to ten pages). The simulation uses synthetic listings and runs on localhost.
-
-For NEAR AI Cloud research with the synthetic catalog, use `GLIMPSEA_RESEARCH_MODE=near-ai-cloud` and set `NEAR_AI_API_KEY` in `.env.local`. The simulation assigns two trials to a browser identity.
 
 With the fixture server running on port 3045, run `bun scripts/verify-extension.ts` to check page limits, trial use, and report access.
 
@@ -126,10 +122,10 @@ GLIMPSEA_EXTENSION_NEAR_TESTNET=0 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_ETSY_LIVE_B
 
 1. Open `opera://extensions` in Opera GX. Turn on **Developer mode**, select **Load unpacked**, and choose this repository's `extension` folder. If Glimpsea is already installed from that folder, select **Reload**.
 2. Open [Etsy search for cafe owner supplies](https://www.etsy.com/search?q=cafe+owner+supplies). From the Opera GX extensions menu, open **Glimpsea Research Demo** beside the search results.
-3. Choose **Etsy live search**. If prompted, select **Allow Etsy access** so the panel can show the keyword from the active tab. Enter your target buyers and available hours. Etsy live uses Basic with up to two results pages. Use a Basic trial or select **Simulate payment**, then click **Start analysis**.
+3. Enter or edit **Etsy keyword**, add your target buyer and available hours, then click **Start analysis**. Allow Etsy access when your browser prompts you. Use a Basic trial or select **Simulate payment**.
 4. Watch the scan highlight cards and move to page 2. When the panel shows **Report ready**, select **Open your report**. The report shows the title, active price when available, and one Etsy URL per listing ID. For the cafe search, it also groups matching titles, summarizes prices by currency, and compares three product ideas against the seller's time limit.
 
-For the paid pilot, set `GLIMPSEA_EXTENSION_NEAR_TESTNET=1` and configure the testnet receiver as shown under **Testnet wallet and checkout**. Keep `GLIMPSEA_ETSY_LIVE_BASIC=1`. Connect your testnet wallet, select **Pay on NEAR testnet**, and verify the exact quote in checkout. Return to the Etsy search tab and select **Resume research**.
+For the paid pilot, set `GLIMPSEA_EXTENSION_NEAR_TESTNET=1` and configure the checkout contract as shown under **Testnet wallet and checkout**. Keep `GLIMPSEA_ETSY_LIVE_BASIC=1`. Choose **Pay on NEAR testnet**, select **Connect wallet**, and approve the 0.01 testnet NEAR payment. The panel starts research after final verification. If Etsy restricts access, wait until your Etsy tab shows the search results, then select **Resume research** on the same order.
 
 The recorded Opera GX run for `cafe owner supplies` read **78 listing cards across two pages** and saved **69 unique listings**. All 69 had a displayed price. Basic stopped at page 2 with a page 3 link still available. Counts and prices can vary between runs. Glimpsea reads the browser DOM without using the Etsy API and assembles this report locally.
 
@@ -155,13 +151,15 @@ The brief picked the **shift checklist** for the first test. The sample contains
 
 ### Paid Basic checkout results
 
+- **Contract checkout v0.1.5 in Opera GX.** NEAR Connect used a dedicated test wallet to call `pay()` for exactly **0.01 testnet NEAR**. Before the payment, the order had zero captured pages and requests to read and analyze pages returned HTTP 402. Glimpsea verified the finalized contract payment by order ID without a transaction hash from the wallet. Etsy live returned HTTP 403. We resumed the same order with two simulated Etsy result pages and saved two fixture listings without a second payment. The private report opened for the payer and returned HTTP 404 without a session. [v0.1.5 testnet receipt](https://testnet.nearblocks.io/txns/C9PGq3bSpWruYgwZMrrxzSFa7QbMh8h63Kg1MYV3Qcfe)
+
 - **Hosted extension v0.1.4 in Opera GX.** Downloaded the ZIP from [the live landing page](https://glimpsea.vercel.app/). **Connect wallet** opened NEAR Connect inside the panel. The NEAR CLI wallet signed the login message and Glimpsea verified a finalized transfer of **0.010000420771632847 NEAR testnet** from the designated Glimpsea test account. The order stayed at zero pages until payment verification. The paid scan then read **4 unique listings from 2 sample catalog pages**. The private report opened for the payer and returned HTTP 404 after disconnecting. [v0.1.4 testnet receipt](https://testnet.nearblocks.io/txns/HVqvS1Zf6g5caz4MGwYDPDRRFE5D4gNs29a2XR56TnoJ)
 - **Hosted extension v0.1.2.** Downloaded from [the live landing page](https://glimpsea.vercel.app/) and installed in a fresh Chromium profile. Both Basic trials and the trial report worked without a wallet. The wallet picker and checkout stayed in the side panel. The third job stayed at zero pages until the panel verified **0.010000495322186445 NEAR testnet**. After **Resume research**, it read **4 unique listings from 2 pages of Glimpsea’s synthetic sample catalog**. A fresh browser session could not open either report, and disconnecting the wallet revoked access to the paid report. [v0.1.2 testnet receipt](https://testnet.nearblocks.io/txns/9MLaeEJDTe1kMHDCZ3JbQRG5dboVFSB11xvNtr76WjMr)
 - **Hosted Chrome beta from Vercel.** Starting at [the live landing page](https://glimpsea.vercel.app/), a fresh NEAR testnet account used both Basic trials. The third order stayed at zero pages until checkout verified a transfer of **0.010000264068962464 NEAR**. After **Resume research**, the beta read **4 unique listings from 2 pages of Glimpsea’s synthetic sample catalog**. [Hosted checkout receipt](https://testnet.nearblocks.io/txns/J8qfg44W2EAVJKYGqff1YbspyLoipMxoNtZrpL7XEnuY)
 - **Live Etsy in Opera GX.** A test account paid **0.010000925400199157 NEAR** on testnet to research `cafe owner supplies`. The order recorded zero pages before payment verification. After **Resume research**, Basic saved **115 unique live listings from 2 pages** and stopped before page 3. [Live Etsy checkout receipt](https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn)
 - **Checkout retest with simulated pages in Chromium.** The revised panel used a new NEAR testnet transfer and verified its transaction hash before scanning. After **Resume research**, Basic saved **3 unique sample listings from 2 simulated Etsy pages**. [Simulated-pages checkout receipt](https://testnet.nearblocks.io/txns/GQyvdPtdMoVTEncaKUKHXSFB4UrrCDS27eN4Wezw97FT)
 
-In every run, the signed-in wallet owner opened the private report. The same URLs returned HTTP 404 without a wallet session.
+In the checkout runs, the signed-in wallet owner opened the private report. The same URLs returned HTTP 404 without a wallet session.
 
 ## Verify checkout with a test transfer
 

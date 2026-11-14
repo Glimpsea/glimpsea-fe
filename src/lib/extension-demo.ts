@@ -7,6 +7,7 @@ import { renderEtsyBrief } from "./etsy-brief";
 import { ExtensionDemoError } from "./extension-errors";
 import { accountForSessionFingerprint, nearOwner } from "./near-auth";
 import { checkoutReceiver, verifyTestnetTransfer } from "./near-testnet";
+import { basicContractPrice, checkoutReceiptHash, configuredCheckoutContract, createCheckoutQuote, verifyCheckoutReceipt } from "./near-checkout-contract";
 import { opportunitySnapshotDate, opportunityTopic, readOpportunityInput, renderNewOpportunityBrief, renderOpportunityBrief } from "./opportunity-brief";
 
 export { ExtensionDemoError } from "./extension-errors";
@@ -15,6 +16,7 @@ const plans = { basic: 2, medium: 5, deep: 10 } as const;
 type Plan = keyof typeof plans;
 const testnetPrices = { basic: 10n ** 22n, medium: 3n * 10n ** 22n, deep: 6n * 10n ** 22n };
 type Checkout = { id: string; owner: string; receiver: string; amount: string; tx_hash: string | null };
+type ContractCheckout = Checkout & { verified_at: number | null };
 type Capture = { page: number; listings: DemoListingCapture[]; hasNext: boolean; nextUrl?: string };
 type DemoOrder = OrderInput & { collection?: "dom" | "etsy" };
 type StoredOrder = DemoOrder | { collection: "opportunities"; topic: string; snapshot: string };
@@ -51,6 +53,10 @@ function database() {
     CREATE TABLE IF NOT EXISTS extension_testnet_checkouts (
       id TEXT PRIMARY KEY, owner TEXT NOT NULL, receiver TEXT NOT NULL, amount TEXT UNIQUE NOT NULL,
       tx_hash TEXT UNIQUE
+    );
+    CREATE TABLE IF NOT EXISTS extension_contract_checkouts (
+      id TEXT PRIMARY KEY, owner TEXT NOT NULL, receiver TEXT NOT NULL, amount TEXT NOT NULL,
+      tx_hash TEXT, verified_at INTEGER
     );
   `);
   return database;
@@ -94,17 +100,24 @@ export function startDemo(owner: string, input: Record<string, unknown>, nearAcc
   const order: DemoOrder = { country: "US", audience: audience.trim(), productionHours,
     ...(supported && { category: supported }), collection };
   if (nearAccount && access === "testnet-payment") {
-    const receiver = checkoutReceiver();
+    const contract = input.paymentProtocol === "contract-v1";
+    if (contract && plan !== "basic") throw new ExtensionDemoError("Contract checkout supports Basic only.");
+    const receiver = contract ? configuredCheckoutContract() : checkoutReceiver();
     if (nearAccount === receiver) throw new ExtensionDemoError("Use a different wallet from the payment receiver.");
     const connection = database();
     connection.exec("BEGIN IMMEDIATE");
     try {
-      let amount: string;
-      do {
-        amount = (testnetPrices[plan] + BigInt(randomInt(1, 10 ** 12)) * 10n ** 6n).toString();
-      } while (connection.prepare("SELECT 1 FROM extension_testnet_checkouts WHERE amount = ?").get(amount));
-      connection.prepare("INSERT INTO extension_testnet_checkouts (id, owner, receiver, amount) VALUES (?, ?, ?, ?)")
-        .run(id, owner, receiver, amount);
+      if (contract) {
+        connection.prepare("INSERT INTO extension_contract_checkouts (id, owner, receiver, amount) VALUES (?, ?, ?, ?)")
+          .run(id, owner, receiver, basicContractPrice);
+      } else {
+        let amount: string;
+        do {
+          amount = (testnetPrices[plan] + BigInt(randomInt(1, 10 ** 12)) * 10n ** 6n).toString();
+        } while (connection.prepare("SELECT 1 FROM extension_testnet_checkouts WHERE amount = ?").get(amount));
+        connection.prepare("INSERT INTO extension_testnet_checkouts (id, owner, receiver, amount) VALUES (?, ?, ?, ?)")
+          .run(id, owner, receiver, amount);
+      }
       connection.prepare(`
         INSERT INTO extension_demo_jobs (id, owner, plan, access, keyword, order_json, state)
         VALUES (?, ?, ?, ?, ?, ?, 'awaiting-payment')
@@ -197,14 +210,16 @@ export function demoJob(owner: string, id: unknown) {
   const job = readJob(owner, id);
   const order = JSON.parse(job.order_json) as StoredOrder;
   const { collection } = order;
-  const checkout = job.access === "testnet-payment" ? readCheckout(owner, job.id) : undefined;
+  const contract = job.access === "testnet-payment" ? readContractCheckout(owner, job.id) : undefined;
+  const checkout = contract ?? (job.access === "testnet-payment" ? readCheckout(owner, job.id) : undefined);
   return {
     id: job.id, state: job.state, pages: job.pages, limit: plans[job.plan], keyword: job.keyword, collection,
     ...(order.collection === "etsy" && { audience: order.audience, productionHours: order.productionHours }),
     ...(collection === "dom" && job.state === "browsing" && { catalogPath: catalogPath(job.keyword, job.pages + 1) }),
     ...(collection === "etsy" && job.state === "browsing" && job.pages > 0 && { nextUrl: savedCapture(job, job.pages).nextUrl }),
     ...(collection && job.pages > 0 && { listings: summarizeCaptures(job).listings }),
-    ...(checkout && { checkout: { receiver: checkout.receiver, amount: checkout.amount, txHash: checkout.tx_hash } }),
+    ...(checkout && { checkout: { receiver: checkout.receiver, amount: checkout.amount, txHash: checkout.tx_hash,
+      ...(contract && { protocol: "contract-v1", verified: contract.verified_at !== null }) } }),
     ...(job.state === "complete" && { reportPath: `/reports/${job.id}` }),
   };
 }
@@ -223,7 +238,45 @@ function readCheckout(owner: string, id: unknown) {
   return checkout;
 }
 
+function readContractCheckout(owner: string, id: unknown) {
+  return typeof id === "string" ? database().prepare("SELECT * FROM extension_contract_checkouts WHERE id = ? AND owner = ?")
+    .get(id, owner) as ContractCheckout | undefined : undefined;
+}
+
+export async function contractQuoteDemo(owner: string, payer: string, id: unknown) {
+  const checkout = readContractCheckout(owner, id);
+  if (!checkout) throw new ExtensionDemoError("Testnet contract checkout not found.", 404);
+  if (checkout.verified_at !== null) return { job: demoJob(owner, checkout.id) };
+  try {
+    return { job: await payDemo(owner, payer, id, undefined) };
+  } catch (error) {
+    if (!(error instanceof ExtensionDemoError) || error.status !== 409) throw error;
+  }
+  return { args: await createCheckoutQuote(checkout.receiver, checkout.id, payer) };
+}
+
 export async function payDemo(owner: string, account: string, id: unknown, hash: unknown) {
+  const contract = readContractCheckout(owner, id);
+  if (contract) {
+    if (contract.verified_at === null && !await verifyCheckoutReceipt(contract.receiver, contract.id, account)) {
+      throw new ExtensionDemoError("Waiting for a finalized NEAR payment.", 409);
+    }
+    const txHash = contract.tx_hash ?? await checkoutReceiptHash(hash, account, contract.receiver, contract.id);
+    const connection = database();
+    connection.exec("BEGIN IMMEDIATE");
+    try {
+      connection.prepare(`
+        UPDATE extension_contract_checkouts
+        SET verified_at = COALESCE(verified_at, ?), tx_hash = COALESCE(tx_hash, ?) WHERE id = ? AND owner = ?
+      `).run(Date.now(), txHash, contract.id, owner);
+      connection.prepare("UPDATE extension_demo_jobs SET state = 'browsing' WHERE id = ? AND state = 'awaiting-payment'").run(contract.id);
+      connection.exec("COMMIT");
+    } catch (error) {
+      connection.exec("ROLLBACK");
+      throw error;
+    }
+    return demoJob(owner, contract.id);
+  }
   const checkout = readCheckout(owner, id);
   if (checkout.tx_hash && checkout.tx_hash === hash) return demoJob(owner, checkout.id);
   if (checkout.tx_hash) throw new ExtensionDemoError("This checkout already has a verified payment.", 409);

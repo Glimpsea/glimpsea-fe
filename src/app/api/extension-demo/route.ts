@@ -1,4 +1,4 @@
-import { analyzeDemo, browseDemoPage, createNewOpportunityReport, createOpportunityReport, demoJob, demoOwner, demoReport, ExtensionDemoError, listDemoJobs, payDemo, researchOwner, startDemo, trialsRemaining } from "@/lib/extension-demo";
+import { analyzeDemo, browseDemoPage, contractQuoteDemo, createNewOpportunityReport, createOpportunityReport, demoJob, demoOwner, demoReport, ExtensionDemoError, listDemoJobs, payDemo, researchOwner, startDemo, trialsRemaining } from "@/lib/extension-demo";
 import { cookies } from "next/headers";
 import { nearOwner, nearSessionCookie, requestNearToken, sessionAccount } from "@/lib/near-auth";
 import { nearMode } from "@/lib/near-testnet";
@@ -46,6 +46,10 @@ export async function POST(request: Request) {
         result = await createNewOpportunityReport(researchOwner(owner, guest, input.sampleId), input);
         break;
       case "jobs": result = listDemoJobs(owner, browserOwner); break;
+      case "contract-quote":
+        if (!accountId) throw new ExtensionDemoError("Connect a NEAR testnet wallet first.", 401);
+        result = await contractQuoteDemo(owner, accountId, input.id);
+        break;
       case "pay":
         if (!accountId) throw new ExtensionDemoError("Connect a NEAR testnet wallet first.", 401);
         result = await payDemo(owner, accountId, input.id, input.txHash);

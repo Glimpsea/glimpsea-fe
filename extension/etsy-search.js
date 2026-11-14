@@ -4,6 +4,9 @@ globalThis.readEtsySearch = function readEtsySearch(expectedPage, keyword, highl
   if (url.origin !== "https://www.etsy.com" || url.pathname !== "/search"
       || url.searchParams.get("q") !== keyword || page !== expectedPage
       || document.readyState === "loading") return null;
+  if (/we detected unusual activity from your device or network/i.test(document.body?.innerText ?? "")) {
+    return { blocked: true };
+  }
   const listings = new Map();
   const clean = (value) => value?.replace(/\s+/g, " ").trim();
 
