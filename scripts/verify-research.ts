@@ -3,6 +3,7 @@ import { sampleOrder } from "../src/lib/buyer";
 import { research } from "../src/lib/research";
 import { cafeProductPlan, validateProductPlan } from "../src/lib/product-research";
 import type { OrderInput } from "../src/lib/a2a";
+import { readOpportunityInput, renderNewOpportunityBrief } from "../src/lib/opportunity-brief";
 
 process.env.GLIMPSEA_RESEARCH_MODE = "fixture";
 const discovery = await research(sampleOrder);
@@ -80,3 +81,46 @@ assert.throws(() => validateProductPlan({ ...cafeProductPlan, selectedConcept: "
 assert.throws(() => validateProductPlan(cafeProductPlan, { ...sampleOrder, category: "digital" }), /allowed product category/);
 assert.equal(validateProductPlan({ ...cafeProductPlan, concepts: [digital] }, { ...sampleOrder, category: "digital" }).concepts.length, 1);
 console.log("PASS Discovery requires three categories, respects time and budget, and selects an idea from the brief.");
+
+const seller = { topic: "Wedding day templates", audience: "Couples planning a small wedding",
+  skills: "Editable PDFs", productionHours: 4, budgetUsd: 0, keywords: [] };
+const sample = { id: "00000000-0000-4000-8000-000000000000", keyword: "wedding templates", pages: 2, listings: 12 };
+const mockups = [
+  { name: "Wedding timeline", keyword: "wedding day timeline template", productionHours: 2, setupUsd: 0 },
+  { name: "Micro wedding planner", keyword: "micro wedding planner", productionHours: 3, setupUsd: 0 },
+  { name: "Seating chart", keyword: "wedding seating chart template", productionHours: 5, setupUsd: 12 },
+].map((idea) => ({
+  ...idea, category: "digital", idea: "An editable template for couples.",
+  costCheck: "Check which fonts are available.", prototypeTest: "Ask buyers to make one change.",
+}));
+
+async function briefWithCandidates(candidates: typeof mockups, input = readOpportunityInput({ ...seller, keywords: "" })) {
+  globalThis.fetch = Object.assign(async () => Response.json({
+    choices: [{ finish_reason: "stop", message: { content: JSON.stringify({ candidates }) } }],
+  }), originalFetch);
+  try {
+    return await renderNewOpportunityBrief(input, sample);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
+const grounded = await briefWithCandidates(mockups);
+assert.match(grounded, /\*\*Test first\*\* Wedding timeline/);
+assert.match(grounded, /497 searches · 26\.6k search results/);
+assert.match(grounded, /over the time limit, over the setup budget/);
+assert.match(grounded, /Ask buyers to make one change/);
+const exactKeywords = readOpportunityInput({ ...seller, keywords: mockups.map(({ keyword }) => keyword).join(", ") });
+await assert.rejects(briefWithCandidates([
+  { ...mockups[0], keyword: "editable wedding day timeline template" }, ...mockups.slice(1),
+], exactKeywords), /could not prepare the ideas/);
+const missing = await briefWithCandidates([
+  mockups[0], { ...mockups[1], keyword: "one page wedding run sheet" }, mockups[2],
+]);
+assert.match(missing, /evidence is insufficient/);
+assert.match(missing, /No verified figures in the saved snapshot/);
+assert.doesNotMatch(missing, /\*\*Test first\*\*/);
+const expensive = await briefWithCandidates(mockups.map((idea) => ({ ...idea, setupUsd: 12 })));
+assert.match(expensive, /No candidate fits the current limits/);
+assert.doesNotMatch(expensive, /\*\*Test first\*\*/);
+console.log("PASS Opportunity briefs choose a supported mockup, defer when evidence is missing, and exclude over-limit candidates.");

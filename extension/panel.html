@@ -12,7 +12,6 @@
   <main>
     <h1>Glimpsea</h1>
     <p id="demo-note">Read search results and open a research report.</p>
-    <button id="open-pilot" class="secondary" type="button" lang="id">Lihat peluang Etsy</button>
     <p id="wallet-status"></p>
     <button id="connect-wallet" type="button" hidden>Connect NEAR testnet wallet</button>
     <button id="disconnect-wallet" class="secondary" type="button" hidden>Disconnect wallet</button>
@@ -32,6 +31,10 @@
             <label>Product area or buyer need (optional)
               <input name="ideaTopic" maxlength="120">
             </label>
+            <label>Etsy keywords to compare (optional)
+              <input name="compareKeywords" maxlength="410" aria-describedby="compare-keywords-hint">
+            </label>
+            <p id="compare-keywords-hint">Enter three to five exact keywords separated by commas.</p>
             <label>What can you make?
               <input name="skills" maxlength="300" required>
             </label>
@@ -95,7 +98,7 @@
     </form>
     <p role="status" id="status">Connecting to Glimpsea…</p>
     <button id="checkout" type="button" hidden>Open testnet checkout</button>
-    <button id="open-report" type="button" hidden>Open private report</button>
+    <button id="open-report" type="button" hidden>Open your report</button>
     <section id="scan-results" aria-labelledby="scan-heading" hidden>
       <h2 id="scan-heading">Listings read</h2>
       <p id="scan-count" role="status"></p>

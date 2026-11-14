@@ -1,6 +1,5 @@
 /* global readEtsySearch */
 const origin = "http://127.0.0.1:3045";
-const pilotButton = document.querySelector("#open-pilot");
 const catalogButton = document.querySelector("#open-catalog");
 const form = document.querySelector("#research");
 const options = document.querySelector("#research-options");
@@ -549,10 +548,6 @@ async function openPrivateReport(job) {
   await chrome.tabs.create({ url: origin + reportPath });
 }
 
-pilotButton.addEventListener("click", () => {
-  void chrome.tabs.create({ url: `${origin}/peluang` });
-});
-
 async function withOpportunityProgress(work, message = "Opening your brief…") {
   if (working || openingOpportunity) return;
   openingOpportunity = true;
@@ -584,6 +579,7 @@ opportunityForm.addEventListener("submit", (event) => {
     const input = {
       sampleId: activeJob.id,
       topic: fields.ideaTopic.value,
+      keywords: fields.compareKeywords.value,
       skills: fields.skills.value,
       budgetUsd: fields.budget.valueAsNumber,
     };
