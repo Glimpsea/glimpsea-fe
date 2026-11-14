@@ -5,9 +5,11 @@ import { nearMode } from "@/lib/near-testnet";
 
 export const runtime = "nodejs";
 
-export function GET() {
-  return Response.json({ nearTestnet: nearMode(), simulation: !nearMode() && process.env.GLIMPSEA_EXTENSION_DEMO === "1",
-    etsyLive: process.env.GLIMPSEA_ETSY_LIVE_BASIC === "1", guestTrials: nearMode() },
+export function GET(request: Request) {
+  const testnet = nearMode();
+  const supportsEtsy = new URL(request.url).searchParams.get("etsy") === "1";
+  return Response.json({ nearTestnet: testnet, simulation: !testnet && process.env.GLIMPSEA_EXTENSION_DEMO === "1",
+    etsyLive: process.env.GLIMPSEA_ETSY_LIVE_BASIC === "1" && (!testnet || supportsEtsy), guestTrials: testnet },
     { headers: { "Cache-Control": "no-store" } });
 }
 

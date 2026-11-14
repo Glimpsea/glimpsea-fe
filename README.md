@@ -1,6 +1,6 @@
 # Glimpsea
 
-Glimpsea is a browser extension that helps Etsy sellers decide what to make. Its research demo compares digital downloads, print-on-demand products, and simple personalized items using a synthetic catalog. The authorized Etsy pilot reads live search results in Opera GX. Sellers can sign in with a NEAR testnet wallet, run two Basic trials, and pay for more research. Glimpsea also has an A2A endpoint for agents that exchange orders and briefs.
+Glimpsea is a browser extension that helps Etsy sellers decide what to make. It reads live Etsy search results and saves the listings and displayed prices in a private report. Sellers get two Basic trials per browser profile and can use a NEAR testnet wallet to pay for more research. Glimpsea also has an A2A endpoint for agents that exchange orders and briefs.
 
 The demo compares a digital download, a print-on-demand product, and a personalized product for cafe owners in the US. The seller has four hours to prepare a first product. The brief compares the three ideas and picks one to test.
 
@@ -8,12 +8,12 @@ The team's other NEAR HACKATHON project is [AgSurance](https://github.com/AgSura
 
 ## Install the Glimpsea extension
 
-1. [Download the Glimpsea extension ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.2.zip) and extract it.
+1. [Download the Glimpsea v0.1.4 extension ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.4.zip) and extract it.
 2. On desktop, open `chrome://extensions` in Chrome, `opera://extensions` in Opera GX, or `brave://extensions` in Brave. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the extracted `glimpsea` folder.
 4. Open **Glimpsea Research** from your browser’s extensions menu.
 
-The hosted v0.1.1 ZIP connects to Glimpsea on Dalang and uses a sample catalog. Select **Connect NEAR testnet wallet**, keep the preset `cafe owner supplies` and **Basic**, and select **Start analysis**. The panel shows two pages read and four unique listings. Select **Open your report** to see the results. Use **Reload** to refresh the panel without signing out. Version 0.1.2 starts with two Basic trials per browser profile. The wallet is needed when you choose to pay.
+Search on Etsy, then open Glimpsea beside the search results. Select **Etsy live search** and **Allow Etsy access** if prompted. The panel reads the keyword from your active tab. Add your target buyers and the hours available to make a first product. Select **Use one Basic trial** and **Start analysis**. Glimpsea reads up to two pages. When it finishes, select **Open your report**. To update an existing installation, extract the new ZIP over the installation folder and reload Glimpsea from your browser’s extensions page. This keeps your trials and reports in the same browser profile.
 
 ## Run the extension locally
 
@@ -49,11 +49,11 @@ In Opera GX, a NEAR testnet account used a Basic trial to search Etsy live for `
 
 1. Open the side panel. Keep the sample keyword, US cafe owners, and four-hour limit in fixture mode.
 2. Choose **Basic** and **Use one Basic trial**. Start research and open the private report. Run a second Basic trial.
-3. Select **Pay on NEAR testnet** and start an order. Choose a wallet from the panel when prompted. The wallet may open its own approval window.
+3. Select **Pay on NEAR testnet**, then **Connect wallet**. Choose a wallet in the panel and sign the login message. If you already connected your wallet, select **Open checkout**. Some wallets open their own approval window.
 4. Review the quote and approve the transfer. The order stays locked until Glimpsea verifies the exact finalized transfer.
 5. Select **Resume research** in the side panel. Open the report when it is ready.
 
-The two Basic trials and their private reports belong to this browser profile. The panel keeps the wallet session for later payments until it expires or you disconnect. Paid orders and reports belong to the NEAR testnet account that paid.
+The two Basic trials and their private reports belong to this browser profile. The panel keeps the Glimpsea session for later payments until it expires or you disconnect from Glimpsea. Paid orders and reports belong to the NEAR testnet account that paid.
 
 Basic, Medium, and Deep scan up to 2, 5, and 10 pages. Their testnet prices start at 0.01, 0.03, and 0.06 NEAR. Each quote adds a small unique amount. If your wallet redirects after payment, paste the transaction hash in checkout. The same hash can confirm the same order again.
 

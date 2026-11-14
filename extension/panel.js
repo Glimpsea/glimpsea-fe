@@ -48,6 +48,7 @@ let mode;
 let working = false;
 let openingOpportunity = false;
 let connectingWallet = false;
+let needsWalletForOrder = false;
 let walletWait;
 let walletView;
 let etsyTabKeyword = "";
@@ -95,8 +96,9 @@ function pendingJob() {
 
 function updateControls() {
   reloadButton.disabled = working || openingOpportunity || connectingWallet;
-  options.disabled = working || openingOpportunity || connectingWallet || Boolean(pendingJob());
-  startButton.disabled = working || openingOpportunity || connectingWallet || (liveSelected() && !pendingJob() && !etsyTabKeyword);
+  options.disabled = working || openingOpportunity || connectingWallet || needsWalletForOrder || Boolean(pendingJob());
+  startButton.disabled = working || openingOpportunity || connectingWallet
+    || (liveSelected() && !pendingJob() && !needsWalletForOrder && !etsyTabKeyword);
   opportunityFields.disabled = working || openingOpportunity || connectingWallet;
   const custom = opportunityForm.elements.topic.value === "custom";
   const sample = activeJob?.collection === "etsy" && activeJob.state === "complete" ? activeJob : null;
@@ -108,11 +110,13 @@ function updateControls() {
     ? `Using your Etsy live scan for “${sample.keyword}” · ${sample.audience} · up to ${sample.productionHours} hours.`
     : "Enter your target buyers and available hours below, then run an Etsy live analysis.";
   logoutButton.disabled = working || openingOpportunity || connectingWallet;
-  const awaitingWallet = startButton.textContent === "Resume research";
-  form.noValidate = awaitingWallet;
-  if (!awaitingWallet && mode?.guestTrials) {
-    const paid = form.elements.access.selectedIndex === 1;
-    startButton.textContent = paid ? "Continue to checkout" : activeJob?.state === "complete" ? "Start another search" : "Start analysis";
+  form.noValidate = Boolean(pendingJob()) || needsWalletForOrder;
+  if (needsWalletForOrder) {
+    startButton.textContent = accountId ? "Resume research" : "Connect wallet";
+  } else if (!pendingJob() && mode?.guestTrials) {
+    const paid = form.elements.access.value === "testnet-payment";
+    startButton.textContent = paid ? (accountId ? "Open checkout" : "Connect wallet")
+      : activeJob?.state === "complete" ? "Start another search" : "Start analysis";
   }
   startButton.classList.toggle("secondary", !checkoutButton.hidden || !reportButton.hidden);
 }
@@ -357,6 +361,7 @@ async function refresh() {
 }
 
 async function run(job) {
+  needsWalletForOrder = false;
   activeJob = job;
   paymentReceipt.hidden = !job.checkout?.txHash;
   if (job.checkout?.txHash) paymentReceipt.href = `https://testnet.nearblocks.io/txns/${job.checkout.txHash}`;
@@ -368,9 +373,9 @@ async function run(job) {
   else scanResults.hidden = true;
   await chrome.storage.local.set({ glimpseaJob: job.id, glimpseaJobRequiresWallet: Boolean(job.checkout) });
   if (job.state === "awaiting-payment") {
-    status.textContent = "Pay on NEAR testnet, then select Resume research.";
-    checkoutButton.hidden = false;
-    startButton.textContent = "Resume research";
+    status.textContent = "Open checkout to review the testnet amount and pay.";
+    checkoutButton.hidden = mode.guestTrials;
+    startButton.textContent = mode.guestTrials ? "Open checkout" : "Resume research";
     status.scrollIntoView({ block: "nearest" });
     return;
   }
@@ -482,9 +487,10 @@ async function resetWallet(revoke = true) {
 }
 
 function showPendingWallet() {
-  startButton.textContent = "Resume research";
-  checkoutButton.hidden = false;
+  needsWalletForOrder = true;
+  checkoutButton.hidden = true;
   status.textContent = "Connect the wallet used for this order to continue.";
+  updateControls();
 }
 
 function openWalletView(params) {
@@ -499,7 +505,7 @@ function openWalletView(params) {
 function closeWalletView() {
   const wait = walletWait;
   walletWait = undefined;
-  wait?.reject(new Error("Wallet connection canceled. Select checkout to try again."));
+  wait?.reject(new Error("Wallet connection canceled. Select Connect wallet to try again."));
   walletView = undefined;
   walletDialog.hidden = true;
   walletFrame.removeAttribute("src");
@@ -518,6 +524,7 @@ window.addEventListener("message", (event) => {
     paymentReceipt.href = `https://testnet.nearblocks.io/txns/${hash}`;
     paymentReceipt.hidden = false;
     closeWalletView();
+    startButton.textContent = "Resume research";
     status.textContent = "Payment verified. Select Resume research.";
   }
 });
@@ -547,7 +554,7 @@ async function connectWallet(savedPair) {
   try {
     const pair = savedPair || await auth("pair");
     if (mode.guestTrials) {
-      status.textContent = "Connect your NEAR testnet wallet to continue to checkout.";
+      status.textContent = "Choose a NEAR testnet wallet to pay for this search.";
       await new Promise((resolve, reject) => {
         const timeout = setTimeout(() => reject(new Error("Wallet sign-in expired. Try again.")), 300_000);
         walletWait = {
@@ -626,11 +633,13 @@ form.addEventListener("submit", (event) => {
     if (glimpseaJob) {
       if (mode.guestTrials && glimpseaJobRequiresWallet && !accountId) {
         await connectWallet();
-        if (!accountId) { checkoutButton.hidden = false; return; }
+        if (!accountId) return;
       }
       const job = await call("status", { id: glimpseaJob });
       if (job.state !== "awaiting-payment" && walletView?.checkout === job.id) closeWalletView();
-      return run(job);
+      await run(job);
+      if (mode.guestTrials && job.state === "awaiting-payment") openWalletView({ checkout: job.id });
+      return;
     }
     const collection = live ? "etsy" : "dom";
     if (collection === "etsy") {
@@ -654,18 +663,6 @@ form.addEventListener("submit", (event) => {
 });
 
 checkoutButton.addEventListener("click", () => {
-  if (!activeJob && mode.guestTrials) {
-    void withProgress(async () => {
-      const { glimpseaJob } = await chrome.storage.local.get("glimpseaJob");
-      if (!glimpseaJob) return;
-      await connectWallet();
-      if (!accountId) { checkoutButton.hidden = false; return; }
-      const job = await call("status", { id: glimpseaJob });
-      await run(job);
-      if (job.state === "awaiting-payment") openWalletView({ checkout: job.id });
-    });
-    return;
-  }
   if (!activeJob) return;
   if (mode.guestTrials) openWalletView({ checkout: activeJob.id });
   else void chrome.tabs.create({ url: `${origin}/wallet?checkout=${encodeURIComponent(activeJob.id)}` });
@@ -731,7 +728,10 @@ reportButton.addEventListener("click", async () => {
 startButton.disabled = true;
 (async () => {
   const saved = await chrome.storage.local.get(["glimpseaOwner", "glimpseaJob", "glimpseaJobRequiresWallet", "glimpseaLastReport", "glimpseaNearToken", "glimpseaNearPair"]);
-  const configuration = await fetch(`${origin}/api/extension-demo`, { cache: "no-store" });
+  const manifest = chrome.runtime.getManifest();
+  const supportsEtsy = manifest.permissions.includes("scripting")
+    && manifest.optional_host_permissions?.includes(etsyPermission.origins[0]);
+  const configuration = await fetch(`${origin}/api/extension-demo${supportsEtsy ? "?etsy=1" : ""}`, { cache: "no-store" });
   if (!configuration.ok) throw new Error("Glimpsea configuration is unavailable.");
   mode = await configuration.json();
   const [activeTab] = await chrome.tabs.query({ currentWindow: true, active: true });

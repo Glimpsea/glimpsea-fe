@@ -5,8 +5,9 @@
   --ink: #1e1111;
   --muted: #60433a;
   --line: #a88d7c;
-  --red: #f31328;
+  --red: #8d1823;
   --yellow: #fec40b;
+  --soft-line: #c5ab94;
   font: 15px/1.45 system-ui, sans-serif;
   color: var(--ink);
   background: var(--pine);
@@ -19,13 +20,13 @@ p, h1, h2 { margin: 0; }
 
 main {
   display: grid;
-  gap: .9rem;
+  gap: .85rem;
   max-width: 32rem;
   padding: 1rem clamp(.75rem, 4vw, 1.25rem) 1.5rem;
   margin-inline: auto;
 }
 
-.masthead { border-bottom: 1px solid var(--ink); padding-bottom: .8rem; }
+.masthead { border-bottom: 1px solid var(--soft-line); padding-bottom: .75rem; }
 .masthead-row {
   display: flex;
   align-items: center;
@@ -40,35 +41,54 @@ main {
   font: italic 2.3rem/1 Georgia, serif;
   letter-spacing: -.065em;
 }
-.masthead p { margin-top: .45rem; color: var(--muted); }
+.masthead p { margin-top: .4rem; color: var(--muted); font-size: .88rem; }
 h2 { font: italic 1.65rem/1.1 Georgia, serif; letter-spacing: -.045em; }
 
 .panel-surface {
   min-width: 0;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--soft-line);
+  border-radius: .55rem;
   background: var(--paper);
-  padding: .85rem;
+  padding: .95rem;
 }
 
-#research { border-top: 3px solid var(--red); }
+#research { gap: 1rem; }
+.spotlight-card { position: relative; isolation: isolate; }
+@media (any-hover: hover) and (prefers-reduced-motion: no-preference) {
+  .spotlight-card::before {
+    position: absolute;
+    z-index: -1;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(13rem at var(--spotlight-x, 50%) var(--spotlight-y, 50%), #fec40b26, transparent 85%);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 180ms ease-out;
+    content: "";
+  }
+  .spotlight-card[data-spotlight]::before { opacity: 1; }
+}
 form, fieldset, label, #wallet, #history { display: grid; }
-form, fieldset, #wallet { gap: .7rem; }
+form, fieldset, #wallet { gap: .75rem; }
 fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
-label { min-width: 0; gap: .26rem; font-weight: 650; }
+label { min-width: 0; gap: .25rem; font-size: .88rem; font-weight: 650; }
 
 input, select, button {
   min-width: 0;
   width: 100%;
   min-height: 44px;
-  border: 1px solid var(--ink);
+  border: 1px solid var(--line);
   border-radius: .35rem;
   padding: .5rem .65rem;
   font: inherit;
   color: inherit;
   background: #fffdf7;
 }
+input, select { font-size: .95rem; font-weight: 500; }
+input::placeholder { color: var(--muted); }
 
 button {
+  border-color: var(--ink);
   background: var(--yellow);
   font-weight: 650;
   cursor: pointer;
@@ -77,7 +97,7 @@ button {
 button:not(:disabled):hover { background: #ffdc6d; }
 .secondary { background: transparent; text-align: start; }
 .secondary:not(:disabled):hover { background: var(--pine); }
-.reload-panel { width: auto; font-size: .87rem; }
+.reload-panel { width: auto; border-color: var(--line); font-size: .8rem; }
 .reload-panel:not(:disabled):hover { background: var(--paper); }
 button:disabled, input:disabled, select:disabled { opacity: .65; }
 button:disabled { cursor: not-allowed; }
@@ -85,20 +105,39 @@ button:disabled { cursor: not-allowed; }
 
 .search-source {
   display: grid;
-  gap: .35rem;
-  border-inline-start: 2px solid var(--line);
-  padding-inline-start: .65rem;
+  gap: .45rem;
+  padding: .75rem;
+  border: 1px solid var(--soft-line);
+  border-radius: .35rem;
+  background: var(--pine);
 }
-.field-name { color: var(--muted); font-size: .85rem; font-weight: 650; }
+.field-name { color: var(--muted); font-size: .8rem; font-weight: 650; }
+#etsy-keyword { font-weight: 650; }
 #etsy-keyword, #wallet-status, #status { overflow-wrap: anywhere; }
-#etsy-plan { border-bottom: 1px solid var(--line); padding-bottom: .55rem; }
-.payment-field { border-top: 1px solid var(--line); padding-top: .65rem; }
+.research-details, .research-payment, .form-actions { display: grid; gap: .65rem; }
+.research-time { display: grid; gap: .25rem; }
+.research-payment { border-top: 1px solid var(--soft-line); padding-top: .75rem; }
+.input-with-unit { position: relative; display: block; }
+.input-with-unit input { padding-inline-end: 3.15rem; }
+.input-with-unit span {
+  position: absolute;
+  top: 50%;
+  right: .55rem;
+  transform: translateY(-50%);
+  color: var(--muted);
+  pointer-events: none;
+}
+@media (min-width: 23rem) {
+  .research-details { grid-template-columns: minmax(0, 1fr) minmax(7rem, 33%); }
+}
+.form-actions { gap: .4rem; }
+#access-note { text-align: center; }
 #trials, #report-scope, #access-note, #etsy-plan, #opportunity-form p {
   color: var(--muted);
   font-size: .87rem;
 }
 #keyword-error, #opportunity-status { font-size: .87rem; }
-#keyword-error { color: #8d1823; }
+#keyword-error { color: var(--red); }
 
 .research-status { display: grid; gap: .55rem; }
 .research-status:has(#status:empty):not(:has(button:not([hidden]))) { display: none; }
@@ -131,12 +170,12 @@ button:disabled { cursor: not-allowed; }
   transform: rotate(45deg);
 }
 .disclosure[open] > summary::after { transform: translateY(.2rem) rotate(225deg); }
-.disclosure > summary:hover { color: #8d1823; }
+.disclosure > summary:hover { color: var(--red); }
 #opportunities { padding-block: .1rem; }
 #opportunity-form { border-top: 1px solid var(--line); padding-block: .75rem; }
 
 #scan-count { margin-top: .4rem; color: var(--muted); font-size: .87rem; }
-#scan-progress { display: block; width: 100%; height: .55rem; margin: .65rem 0 .25rem; accent-color: #8d1823; }
+#scan-progress { display: block; width: 100%; height: .55rem; margin: .65rem 0 .25rem; accent-color: var(--red); }
 #scan-listings { list-style: none; margin: 0; padding: 0; }
 #scan-listings li {
   display: grid;

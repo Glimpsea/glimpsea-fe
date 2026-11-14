@@ -1,19 +1,26 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { NearConnector } from "@hot-labs/near-connect";
+import type { NearConnector, NearWalletBase } from "@hot-labs/near-connect";
 
-let connector: NearConnector | undefined;
+let connector: Promise<NearConnector> | undefined;
 
-async function walletConnector() {
-  if (!connector) {
-    const { NearConnector } = await import("@hot-labs/near-connect");
-    connector = new NearConnector({
+function walletConnector() {
+  connector ??= import("@hot-labs/near-connect").then(({ NearConnector }) =>
+    new NearConnector({
       network: "testnet",
+      autoConnect: false,
       features: { testnet: true, signMessage: true, signAndSendTransaction: true, signInWithoutAddKey: true },
-    });
-  }
+    }),
+  ).catch((error: unknown) => {
+    connector = undefined;
+    throw error;
+  });
   return connector;
+}
+
+async function hasAccount(wallet: NearWalletBase | undefined, account: string) {
+  return (await wallet?.getAccounts())?.some(({ accountId }) => accountId === account) ?? false;
 }
 
 async function api<T>(path: string, body: object, token?: string): Promise<T> {
@@ -100,6 +107,7 @@ export function WalletFlow({ pair, checkout, panelOrigin }: { pair?: string; che
     const signed = await wallet.signMessage({
       message: challenge.message, recipient: challenge.recipient, nonce, network: "testnet", signerId: selected.accountId,
     });
+    if (signed.accountId !== selected.accountId) throw new Error(`Sign the message with ${selected.accountId}.`);
     const result = await api<{ accountId: string }>(auth, { action: "verify", id: pair, ...signed });
     setAccount(result.accountId);
     setMessage(panelOrigin ? "Wallet connected." : "Wallet connected. Return to the Glimpsea side panel.");
@@ -112,11 +120,11 @@ export function WalletFlow({ pair, checkout, panelOrigin }: { pair?: string; che
     let hash = txHash;
     if (!hash) {
       const selector = await walletConnector();
-      const { wallet, accounts } = await selector.getConnectedWallet().catch(async () => {
-        const connected = await selector.connect();
-        return { wallet: connected, accounts: await connected.getAccounts() };
-      });
-      if (!accounts.some((item) => item.accountId === account)) throw new Error(`Connect ${account} to pay for this order.`);
+      let wallet = await selector.wallet().catch(() => undefined);
+      if (!wallet || !await hasAccount(wallet, account)) {
+        wallet = await selector.connect();
+        if (!await hasAccount(wallet, account)) throw new Error(`Connect ${account} to pay for this order.`);
+      }
       const result = await wallet.signAndSendTransaction({
         signerId: account, network: "testnet", receiverId: quote.receiver,
         actions: [{ type: "Transfer", params: { deposit: quote.amount } }],

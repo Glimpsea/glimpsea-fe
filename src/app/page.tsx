@@ -2,7 +2,7 @@ import DemoClient from "./demo-client";
 import Image from "next/image";
 import { HeaderLogo } from "./header-logo";
 
-const extensionDownload = "https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.2.zip";
+const extensionDownload = "https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.4.zip";
 const liveReceipt = "https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn";
 const extensionGuide = "https://github.com/Glimpsea/glimpsea-fe#test-basic-on-etsy-live-in-opera-gx";
 
@@ -30,11 +30,11 @@ export default function Home() {
         <section className="extension-demo wrap" id="extension-demo" aria-labelledby="extension-title">
           <div className="extension-summary">
             <h2 id="extension-title">A Basic search, from Etsy to report</h2>
-            <p>In the Etsy live pilot, open search results beside Glimpsea. The panel shows the keyword from your tab. Use a Basic trial or pay on NEAR testnet to read up to two pages and open your private report.</p>
+            <p>Search for any keyword on Etsy and open Glimpsea beside the results. A Basic search reads up to two pages and gives you a private report.</p>
             <p>In our paid run, Glimpsea waited for payment verification, then read 115 unique listings across two pages for <strong>cafe owner supplies</strong>.</p>
             <ul>
               <li><a href={liveReceipt}>View the NEAR testnet receipt</a></li>
-              <li><a href={extensionGuide}>Set up the Etsy live pilot in Opera GX</a></li>
+              <li><a href={extensionGuide}>Run a Basic search in Opera GX</a></li>
             </ul>
           </div>
           <figure className="extension-preview">
@@ -47,13 +47,13 @@ export default function Home() {
         <section className="chrome-install wrap" id="install-extension" aria-labelledby="install-title">
           <div>
             <h2 id="install-title">Install the Glimpsea extension</h2>
-            <p>Use Chrome, Opera GX, or Brave on desktop. Try two Basic searches in the sample catalog. Connect a NEAR testnet wallet when you’re ready to pay.</p>
+            <p>Use Chrome, Opera GX, or Brave on desktop. Your first two Basic searches are free. Connect a NEAR testnet wallet when you’re ready to pay.</p>
           </div>
           <ol>
             <li><a href={extensionDownload}>Download the ZIP</a> and extract it.</li>
             <li>Open <code>chrome://extensions</code> in Chrome, <code>opera://extensions</code> in Opera GX, or <code>brave://extensions</code> in Brave. Turn on <strong>Developer mode</strong>.</li>
             <li>Click <strong>Load unpacked</strong> and select the extracted <code>glimpsea</code> folder.</li>
-            <li>Open <strong>Glimpsea Research</strong> from your browser’s extensions menu.</li>
+            <li>Open an Etsy search. Choose <strong>Glimpsea Research</strong> from your browser’s extensions menu, then select <strong>Allow Etsy access</strong> when prompted.</li>
           </ol>
         </section>
 

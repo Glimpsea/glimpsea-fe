@@ -6,6 +6,7 @@
   <title>Glimpsea Research</title>
   <link rel="stylesheet" href="panel.css">
   <script defer src="etsy-search.js"></script>
+  <script defer src="spotlight-card.js"></script>
   <script defer src="panel.js"></script>
 </head>
 <body>
@@ -20,7 +21,7 @@
     <div id="wallet" class="panel-surface" hidden>
       <p id="wallet-status"></p>
       <button id="connect-wallet" type="button" hidden>Connect NEAR testnet wallet</button>
-      <button id="disconnect-wallet" class="secondary" type="button" hidden>Disconnect wallet</button>
+      <button id="disconnect-wallet" class="secondary" type="button" hidden>Disconnect from Glimpsea</button>
     </div>
     <section id="wallet-dialog" class="panel-surface" aria-label="NEAR testnet wallet" hidden>
       <button id="close-wallet" class="secondary" type="button">Close wallet</button>
@@ -32,13 +33,13 @@
       <a id="payment-receipt" target="_blank" rel="noreferrer" hidden>View testnet receipt</a>
       <button id="open-report" type="button" hidden>Open your report</button>
     </div>
-    <form id="research" class="panel-surface" aria-labelledby="research-heading" hidden>
+    <form id="research" class="panel-surface spotlight-card" aria-labelledby="research-heading" hidden>
       <h2 id="research-heading">Run a search</h2>
       <fieldset id="research-options">
-        <label id="source-field" hidden>Source
+        <label id="source-field" hidden>Search source
           <select name="source">
             <option value="etsy">Etsy live search</option>
-            <option value="dom">Local Etsy simulation</option>
+            <option value="dom">Sample catalog</option>
           </select>
         </label>
         <div id="etsy-search" class="search-source" hidden>
@@ -52,8 +53,18 @@
         </label>
         <p id="keyword-error" role="alert" hidden></p>
         <button id="open-catalog" class="secondary" type="button">Open sample catalog</button>
-        <label>Target buyers in the US <input name="audience" required maxlength="180"></label>
-        <label>Hours to prepare the first product <input name="productionHours" type="number" value="4" min="0.5" max="80" step="0.5" required></label>
+        <div class="research-details">
+          <label>Target buyers in the US
+            <input name="audience" placeholder="e.g. Cafe owners" required maxlength="180">
+          </label>
+          <div class="research-time">
+            <label for="production-hours">Time to make it</label>
+            <div class="input-with-unit">
+              <input id="production-hours" name="productionHours" type="number" value="4" min="0.5" max="80" step="0.5" aria-describedby="time-unit" required>
+              <span id="time-unit">hours</span>
+            </div>
+          </div>
+        </div>
         <label id="category-field">Category
           <select name="category">
             <option value="">Compare all three</option>
@@ -62,7 +73,6 @@
             <option value="personalized">Simple personalization</option>
           </select>
         </label>
-        <p id="etsy-plan" hidden><strong>Basic</strong> · Up to 2 Etsy results pages</p>
         <label id="plan-field">Package
           <select name="plan">
             <option value="basic">Basic · up to 2 pages</option>
@@ -71,16 +81,21 @@
           </select>
         </label>
         <p id="report-scope" hidden></p>
-        <label class="payment-field">Use a trial or pay
-          <select name="access" aria-describedby="trials access-note">
-            <option value="trial">Use one Basic trial</option>
-            <option value="simulated-payment">Simulate payment</option>
-          </select>
-        </label>
-        <p id="trials"></p>
+        <div class="research-payment">
+          <p id="etsy-plan" hidden><strong>Basic</strong> · Up to 2 Etsy results pages</p>
+          <label>Research access
+            <select name="access" aria-describedby="trials access-note">
+              <option value="trial">Use one Basic trial</option>
+              <option value="simulated-payment">Simulate payment</option>
+            </select>
+          </label>
+          <p id="trials"></p>
+        </div>
       </fieldset>
-      <p id="access-note" hidden></p>
-      <button id="start-analysis" type="submit">Start analysis</button>
+      <div class="form-actions">
+        <button id="start-analysis" type="submit">Start analysis</button>
+        <p id="access-note" hidden></p>
+      </div>
     </form>
     <section id="scan-results" class="panel-surface" aria-labelledby="scan-heading" hidden>
       <h2 id="scan-heading">Listings read</h2>
