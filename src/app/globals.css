@@ -105,6 +105,14 @@ a.wordmark {
   letter-spacing: -.028em;
 }
 
+.intro-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: center;
+  gap: .5rem 1.25rem;
+}
+
 .intro-link {
   display: inline-flex;
   align-items: center;
@@ -120,7 +128,7 @@ a.wordmark {
 .intro-link:hover { text-decoration: underline; }
 .intro-link:hover span { transform: translateY(3px); }
 
-.extension-demo {
+.extension-demo, .chrome-install {
   display: grid;
   grid-template-columns: minmax(0, .75fr) minmax(0, 1.25fr);
   align-items: center;
@@ -130,7 +138,7 @@ a.wordmark {
   scroll-margin-top: .5rem;
 }
 
-.extension-summary h2 {
+.extension-summary h2, .chrome-install h2 {
   font: italic 400 clamp(2.1rem, 3.7vw, 4rem)/1.02 var(--font-editorial);
   letter-spacing: -.06em;
 }
@@ -142,6 +150,14 @@ a.wordmark {
   margin-top: .6rem;
   font-size: .78rem;
 }
+
+.chrome-install { align-items: start; }
+.chrome-install p { margin-top: 1rem; max-width: 40ch; }
+.chrome-install ol { list-style: decimal; padding-inline-start: 1.5rem; }
+.chrome-install li { padding-inline-start: .35rem; }
+.chrome-install li + li { margin-top: .8rem; }
+.chrome-install a { text-decoration: underline; text-underline-offset: .2em; }
+.chrome-install code { overflow-wrap: anywhere; }
 
 .demo-band {
   background: var(--color-deep-burgundy);
@@ -338,7 +354,7 @@ a.wordmark {
 }
 
 @media (max-width: 760px) {
-  .extension-demo { grid-template-columns: minmax(0, 1fr); }
+  .extension-demo, .chrome-install { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

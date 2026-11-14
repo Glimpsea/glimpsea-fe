@@ -4,7 +4,16 @@ Glimpsea is a browser extension that helps Etsy sellers decide what to make. Its
 
 The demo compares a digital download, a print-on-demand product, and a personalized product for cafe owners in the US. The seller has four hours to prepare a first product. The brief compares the three ideas and picks one to test.
 
-## Install the Chrome extension
+## Install the Chrome beta
+
+1. [Download the Chrome beta ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome.zip) and extract it.
+2. Open `chrome://extensions` in desktop Chrome and turn on **Developer mode**.
+3. Click **Load unpacked** and select the extracted `glimpsea` folder.
+4. Open **Glimpsea Research** from Chrome’s extensions menu.
+
+The beta connects to Glimpsea on Dalang and uses a sample catalog. Connect a NEAR testnet wallet to use the two Basic trials, pay for more research, and open private reports.
+
+## Run the extension locally
 
 Install Chrome, Node.js 22.22.2 or later, and Bun.
 
@@ -97,7 +106,7 @@ Run the local server from this directory:
 GLIMPSEA_EXTENSION_DEMO=1 GLIMPSEA_RESEARCH_MODE=fixture bun run dev --port 3045
 ```
 
-Load or reload the extension as described above. Open the [local Etsy search simulation](http://127.0.0.1:3045/demo-catalog?keyword=cafe+owner+supplies&page=1), then click the Glimpsea toolbar icon to open the side panel beside it. Choose **Basic** and click **Start analysis**. Glimpsea highlights cards as it reads them, follows **Next page**, and updates the panel with titles, active prices, and links. Basic stops after two pages or when results end. A listing repeated on another page counts once. Open the private report from the panel to see the analysis.
+Load or reload the repository’s `extension` folder as described in [Run the extension locally](#run-the-extension-locally). Open the [local Etsy search simulation](http://127.0.0.1:3045/demo-catalog?keyword=cafe+owner+supplies&page=1), then click the Glimpsea toolbar icon to open the side panel beside it. Choose **Basic** and click **Start analysis**. Glimpsea highlights cards as it reads them, follows **Next page**, and updates the panel with titles, active prices, and links. Basic stops after two pages or when results end. A listing repeated on another page counts once. Open the private report from the panel to see the analysis.
 
 Select **Simulate payment** to try Medium (up to five pages) or Deep (up to ten pages). The simulation uses synthetic listings and runs on localhost.
 
