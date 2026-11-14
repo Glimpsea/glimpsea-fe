@@ -2,7 +2,7 @@ import DemoClient from "./demo-client";
 import Image from "next/image";
 import { HeaderLogo } from "./header-logo";
 
-const extensionDownload = "https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome.zip";
+const extensionDownload = "https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.1.zip";
 const liveReceipt = "https://testnet.nearblocks.io/txns/ENAZzTg8habtsBmvYbWvWM8KUs8kQF7jEhRUNT8xQiHn";
 const extensionGuide = "https://github.com/Glimpsea/glimpsea-fe#test-basic-on-etsy-live-in-opera-gx";
 

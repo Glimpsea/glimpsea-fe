@@ -6,7 +6,7 @@ The demo compares a digital download, a print-on-demand product, and a personali
 
 ## Install the Glimpsea extension
 
-1. [Download the Glimpsea extension ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome.zip) and extract it.
+1. [Download the Glimpsea extension ZIP](https://10e0ff54-f828-44de-a965-5671328a08d3.svc.dalang.io/downloads/glimpsea-chrome-v0.1.1.zip) and extract it.
 2. On desktop, open `chrome://extensions` in Chrome, `opera://extensions` in Opera GX, or `brave://extensions` in Brave. Turn on **Developer mode**.
 3. Click **Load unpacked** and select the extracted `glimpsea` folder.
 4. Open **Glimpsea Research** from your browser’s extensions menu.
