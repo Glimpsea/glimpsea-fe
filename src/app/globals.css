@@ -149,12 +149,12 @@ a.wordmark {
   content: "";
 }
 
-.landing-workflow, .landing-install {
+.landing-workflow, .landing-install, .landing-agents {
   padding-block: clamp(3rem, 6vw, 5.75rem);
   scroll-margin-top: .5rem;
 }
 
-.landing-workflow h2, .market-section h2, .landing-install h2 {
+.landing-workflow h2, .market-section h2, .landing-install h2, .landing-agents h2 {
   font: italic 400 clamp(2.35rem, 5vw, 4.75rem)/.98 var(--font-editorial);
   letter-spacing: -.065em;
 }
@@ -182,6 +182,8 @@ a.wordmark {
 .workflow-images h3 { margin-top: .85rem; font-weight: 650; font-size: 1.08rem; }
 .workflow-images p { margin-top: .25rem; }
 .workflow-caption { display: block; margin-top: .4rem; font-size: .775rem; color: #60433a; }
+.workflow-recovery { max-width: 68ch; margin-top: 1.5rem; }
+.workflow-recovery h3 { font-weight: 650; margin-bottom: .25rem; }
 .workflow-proof { margin-top: 1.5rem; padding-top: .85rem; border-top: 1px solid #c5ab94; font-size: .875rem; }
 
 .market-band { background: var(--color-ink); color: var(--color-pale-pine); }
@@ -235,11 +237,17 @@ a.wordmark {
 .market-selection { display: grid; gap: .1rem; min-height: 4.5rem; margin-top: 2rem; }
 .market-selection span { font-size: .9rem; }
 
-.landing-install {
+.landing-install, .landing-agents {
   display: grid;
   grid-template-columns: minmax(0, .7fr) minmax(0, 1.3fr);
   gap: clamp(1.5rem, 5vw, 5rem);
 }
+
+.landing-agents { border-top: 1px solid #c5ab94; }
+.landing-agents ol { list-style: decimal; padding-inline-start: 1.25rem; margin-block: 1rem; }
+.landing-agents li + li { margin-top: .45rem; }
+.agent-links { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem 1.2rem; }
+.agent-links a:not(.run-button) { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }
 
 .install-summary .install-price { display: grid; gap: .2rem; margin-block: 1rem 1.35rem; }
 .install-price strong { font-size: clamp(1.35rem, 3vw, 2rem); letter-spacing: -.045em; }
@@ -449,7 +457,7 @@ a.wordmark {
 }
 
 @media (max-width: 760px) {
-  .workflow-images, .landing-install, .market-section { grid-template-columns: minmax(0, 1fr); }
+  .workflow-images, .landing-install, .landing-agents, .market-section { grid-template-columns: minmax(0, 1fr); }
   .workflow-images li > img { aspect-ratio: 16 / 10; }
   .workflow-images { gap: 1.8rem; }
   .hero-photo img { object-position: center center; }
